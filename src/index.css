@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Newsreader", serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-surface: #f9f9f9;
+  --color-on-surface: #1a1c1c;
+  --color-surface-container-low: #f3f3f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container: #eeeeee;
+  --color-surface-container-high: #e8e8e8;
+  --color-on-surface-variant: #4c4546;
+  --color-outline-variant: #cfc4c5;
+  --color-primary-container: #1b1b1b;
+}
+
+@layer base {
+  body {
+    @apply font-body bg-surface text-on-surface antialiased;
+  }
+}
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes search-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-search-drop {
+  animation: search-drop 0.15s ease-out forwards;
+}
+
+/* Custom DayPicker Styles */
+.rdp {
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: #000000;
+  --rdp-background-color: #f3f3f3;
+  --rdp-accent-color-foreground: #ffffff;
+  margin: 0;
+}
+
+.rdp-day_selected, .rdp-day_selected:focus-visible, .rdp-day_selected:hover {
+  background-color: var(--rdp-accent-color) !important;
+  color: var(--rdp-accent-color-foreground) !important;
+}
+
+.rdp-day_range_middle {
+  background-color: #eeeeee !important;
+  color: #000000 !important;
+}
+
+.rdp-button:hover:not([disabled]):not(.rdp-day_selected) {
+  background-color: #f3f3f3;
+}
+
+.rdp-day_disabled {
+  opacity: 0.25;
+  text-decoration: line-through;
+  cursor: not-allowed !important;
+}
+
+.rdp-day_today {
+  font-weight: bold;
+  text-decoration: underline;
+}

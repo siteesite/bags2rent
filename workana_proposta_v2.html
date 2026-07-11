@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposta Pro | Workana Generator v2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #10b981;
+            --bg: #f1f5f9;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --glass: rgba(255, 255, 255, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        /* Glassmorphism Header */
+        header {
+            background: var(--primary);
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            padding: 40px;
+            border-radius: 24px;
+            color: white;
+            box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+
+        header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header p {
+            font-weight: 300;
+            opacity: 0.9;
+            font-size: 18px;
+        }
+
+        /* Main Content */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid white;
+            padding: 35px;
+            border-radius: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            font-size: 16px;
+            background: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+            transform: translateY(-1px);
+        }
+
+        textarea {
+            min-height: 100px;
+        }
+
+        /* Profile Section */
+        .settings-bar {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px 30px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+        }
+
+        .btn-secondary:hover {
+            background: #059669;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Proposta Result */
+        .result-container {
+            margin-top: 30px;
+            display: none;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .proposta-output {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 30px;
+            border-radius: 20px;
+            font-family: 'Outfit', sans-serif;
+            white-space: pre-wrap;
+            line-height: 1.7;
+            font-size: 15px;
+            border: 1px solid #1e293b;
+            margin-bottom: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        /* Custom Scrollbar */
+        .proposta-output::-webkit-scrollbar {
+            width: 8px;
+        }
+        .proposta-output::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .proposta-output::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+
+        /* Alerts */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            animation: fadeInRight 0.3s ease;
+        }
+
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .toast-success { background: var(--secondary); }
+        .toast-error { background: #ef4444; }
+
+        /* Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr; }
+            header { padding: 30px; }
+            .card { padding: 25px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1><i class="fas fa-rocket"></i> Workana Proposta v2</h1>
+            <p>Gere propostas de alto impacto com auxílio de IA</p>
+        </header>
+
+        <div class="card">
+            <div class="section-title">
+                <i class="fas fa-cog"></i> Configurações do seu Perfil
+            </div>
+            
+            <div class="settings-bar">
+                <div class="form-group">
+                    <label>Link do Perfil Workana</label>
+                    <input type="text" id="perfilLink" placeholder="https://www.workana.com/freelancer/...">
+                </div>
+                <div class="form-group">
+                    <label>Sobre Você (Resumo da Experiência)</label>
+                    <textarea id="dadosDev" placeholder="Conte sobre suas especialidades..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Chave DeepSeek API (Opcional)</label>
+                    <input type="password" id="apiKey" placeholder="Cole sua chave aqui para ativar a IA">
+                </div>
+                <small style="color: var(--text-muted)">* Seus dados são salvos localmente no seu navegador.</small>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-file-signature"></i> Detalhes do Projeto
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Título do Projeto</label>
+                    <input type="text" id="titulo" placeholder="Ex: Criação de Landing Page em React">
+                </div>
+                
+                <div class="form-group full-width">
+                    <label>Descrição Original do Cliente</label>
+                    <textarea id="descricao" placeholder="Cole aqui o que o cliente escreveu no Workana..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Prazo Estimado (Dias)</label>
+                    <input type="number" id="prazo" value="15">
+                </div>
+
+                <div class="form-group">
+                    <label>Complexidade</label>
+                    <select id="complexidade">
+                        <option value="Baixa">Baixa</option>
+                        <option value="Média" selected>Média</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Muito Alta">Muito Alta</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Valor Mínimo (US$)</label>
+                    <input type="number" id="valorMin" value="500">
+                </div>
+
+                <div class="form-group">
+                    <label>Valor Máximo (US$)</label>
+                    <input type="number" id="valorMax" value="1500">
+                </div>
+            </div>
+
+            <button id="btnGerar" class="btn">
+                <span class="spinner" id="spinner"></span>
+                <span id="btnText"><i class="fas fa-magic"></i> Gerar Proposta de Impacto</span>
+            </button>
+        </div>
+
+        <div id="resultArea" class="result-container">
+            <div class="card">
+                <div class="section-title">
+                    <i class="fas fa-check-double"></i> Proposta Finalizada
+                </div>
+                <div class="proposta-output" id="output"></div>
+                <button id="btnCopiar" class="btn btn-secondary">
+                    <i class="far fa-copy"></i> Copiar Proposta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos
+            const inputs = ['perfilLink', 'dadosDev', 'apiKey', 'titulo', 'descricao', 'prazo', 'valorMin', 'valorMax', 'complexidade'];
+            const elements = {};
+            inputs.forEach(id => elements[id] = document.getElementById(id));
+            
+            const btnGerar = document.getElementById('btnGerar');
+            const btnCopiar = document.getElementById('btnCopiar');
+            const spinner = document.getElementById('spinner');
+            const btnText = document.getElementById('btnText');
+            const resultArea = document.getElementById('resultArea');
+            const output = document.getElementById('output');
+            const toast = document.getElementById('toast');
+
+            // Carregar dados salvos
+            const savedData = JSON.parse(localStorage.getItem('workana_pro_data') || '{}');
+            ['perfilLink', 'dadosDev', 'apiKey'].forEach(key => {
+                if(savedData[key]) elements[key].value = savedData[key];
+            });
+
+            // Valor padrão para Dados Dev se estiver vazio
+            if(!elements.dadosDev.value) {
+                elements.dadosDev.value = "Desenvolvedor experiente especializado em soluções web modernas, com foco em performance e experiência do usuário.";
+            }
+
+            function showToast(msg, type = 'success') {
+                toast.textContent = msg;
+                toast.className = `toast toast-${type}`;
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 3000);
+            }
+
+            async function gerarProposta() {
+                // Salvar dados persistentes
+                localStorage.setItem('workana_pro_data', JSON.stringify({
+                    perfilLink: elements.perfilLink.value,
+                    dadosDev: elements.dadosDev.value,
+                    apiKey: elements.apiKey.value
+                }));
+
+                if(!elements.titulo.value || !elements.descricao.value) {
+                    showToast('Preencha o título e a descrição!', 'error');
+                    return;
+                }
+
+                // Iniciar Loading
+                btnGerar.disabled = true;
+                spinner.style.display = 'inline-block';
+                btnText.textContent = 'IA Pensando na melhor estratégia...';
+
+                const baseProposta = `Olá! Espero que esteja bem.\n\nAgradeço por compartilhar seu projeto "${elements.titulo.value}". Li atentamente sua necessidade e estou muito interessado em colaborar.\n\n**SOBRE MIM:**\n${elements.dadosDev.value}\nMeu Perfil: ${elements.perfilLink.value}\n\n**MINHA VISÃO DO PROJETO:**\n${elements.descricao.value}\n\n**PLANEJAMENTO:**\n- Início imediato com análise de requisitos\n- Ciclos de entrega com feedback constante\n- Testes de qualidade em cada etapa\n\n**PRAZO E INVESTIMENTO:**\n- Tempo: ${elements.prazo.value} dias\n- Investimento: US$ ${elements.valorMin.value} a US$ ${elements.valorMax.value}\n- Complexidade: ${elements.complexidade.value}\n\nEstou à disposição para uma conversa rápida para alinharmos os detalhes!\n\nAtenciosamente,\nDesenvolvedor Especialista`;
+
+                let finalProposta = baseProposta;
+
+                if(elements.apiKey.value) {
+                    try {
+                        finalProposta = await melhorarComAI(baseProposta, elements.descricao.value, elements.complexidade.value, elements.apiKey.value);
+                    } catch (e) {
+                        showToast('Erro na IA. Usando versão base.', 'error');
+                    }
+                }
+
+                output.textContent = finalProposta;
+                resultArea.style.display = 'block';
+                resultArea.scrollIntoView({ behavior: 'smooth' });
+
+                // Reset Button
+                btnGerar.disabled = false;
+                spinner.style.display = 'none';
+                btnText.innerHTML = '<i class="fas fa-magic"></i> Gerar Proposta de Impacto';
+                showToast('Proposta gerada com sucesso!');
+            }
+
+            async function melhorarComAI(proposta, desc, comp, key) {
+                const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [
+                            { role: 'system', content: 'Você é um redator sênior especializado em propostas comerciais de TI que convertem. Seu objetivo é pegar uma proposta base e torná-la irresistível, técnica e profissional.' },
+                            { role: 'user', content: `Melhore esta proposta para o Workana:\n\nDescrição do cliente: ${desc}\nComplexidade: ${comp}\n\nProposta base:\n${proposta}` }
+                        ],
+                        temperature: 0.6
+                    })
+                });
+
+                if(!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+
+            // Eventos
+            btnGerar.addEventListener('click', gerarProposta);
+            
+            btnCopiar.addEventListener('click', () => {
+                navigator.clipboard.writeText(output.textContent).then(() => {
+                    showToast('Copiado para a área de transferência!');
+                    btnCopiar.innerHTML = '<i class="fas fa-check"></i> Copiado com Sucesso!';
+                    setTimeout(() => btnCopiar.innerHTML = '<i class="far fa-copy"></i> Copiar Proposta', 2000);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

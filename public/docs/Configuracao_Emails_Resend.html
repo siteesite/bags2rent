@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração de E-mails Transacionais - Resend</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #f9fafb;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e5e7eb;
+        }
+        h1 {
+            color: #111827;
+            border-bottom: 2px solid #f3f4f6;
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-style: italic;
+        }
+        h2 {
+            color: #374151;
+            margin-top: 30px;
+        }
+        p {
+            margin-bottom: 16px;
+        }
+        .step {
+            margin-bottom: 30px;
+        }
+        .step-number {
+            display: inline-block;
+            background-color: #111;
+            color: white;
+            width: 28px;
+            height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            line-height: 28px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        pre {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            border: 1px solid #e5e7eb;
+        }
+        code {
+            background-color: #f3f4f6;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+            color: #1e3a8a;
+        }
+        .tags-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .tags-table th, .tags-table td {
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            text-align: left;
+        }
+        .tags-table th {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Configuração de E-mails Transacionais (Resend)</h1>
+        <p>O <strong>Resend</strong> é o serviço utilizado pelo sistema <strong>2Bags2rent</strong> para o envio de e-mails de confirmação e atualizações de pedidos para os clientes. Siga o passo a passo abaixo para configurá-lo.</p>
+
+        <div class="step">
+            <h2><span class="step-number">1</span> Criar uma conta no Resend</h2>
+            <p>Acesse o site <a href="https://resend.com" target="_blank">resend.com</a> e crie uma conta gratuita. O plano grátis permite o envio de até 3.000 e-mails por mês, o que é suficiente para a maioria das lojas iniciantes.</p>
+        </div>
+
+        <div class="step">
+            <h2><span class="step-number">2</span> Adicionar seu Domínio</h2>
+            <p>Para enviar e-mails de forma profissional (sem cair na caixa de spam), você precisa registrar o seu domínio (ex: <code>2bags2rent.com.br</code>).</p>
+            <ul>
+                <li>No painel do Resend, vá no menu esquerdo e clique em <strong>Domains</strong>.</li>
+                <li>Clique no botão <strong>Add Domain</strong>.</li>
+                <li>Digite o seu domínio e região.</li>
+                <li>O Resend irá gerar alguns registros DNS (geralmente DKIM, SPF, TXT etc). Copie esses registros e adicione nas configurações de DNS onde o seu domínio está hospedado (ex: Registro.br, Cloudflare, HostGator).</li>
+                <li>Após adicionar as entradas DNS no seu provedor, clique no botão <strong>Verify</strong> no Resend e aguarde o domínio ficar com o status esverdeado "Verified".</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h2><span class="step-number">3</span> Gerar a Chave da API (API Key)</h2>
+            <p>A API Key é a senha que nosso sistema usará para disparar os e-mails.</p>
+            <ul>
+                <li>No painel do Resend, clique em <strong>API Keys</strong> no menu à esquerda.</li>
+                <li>Clique em <strong>Create API Key</strong>.</li>
+                <li>Dê um nome para a chave (Ex: <code>Site 2Bags2rent</code>).</li>
+                <li>Deixe a permissão como <strong>Full Access</strong>.</li>
+                <li>Copie a chave gerada (ela começa com <code>re_...</code>). <strong>Atenção:</strong> Guarde bem essa chave, pois ela não será exibida novamente.</li>
+            </ul>
+            <div class="info-box">
+                Pegue a chave recém-copiada e cole no campo <strong>API Key</strong> na tela de Configurações Administrativas do site.
+            </div>
+        </div>
+
+        <div class="step">
+            <h2><span class="step-number">4</span> Utilizando as Tags Dinâmicas</h2>
+            <p>Ao redigir o corpo dos seus e-mails (no campo HTML do sistema), você pode usar "Tags" para inserir informações dinâmicas que serão trocadas pelos dados do pedido na hora do disparo. Nosso sistema já vem preenchido com um Template Padrão, mas sinta-se livre para editá-lo.</p>
+            
+            <table class="tags-table">
+                <thead>
+                    <tr>
+                        <th>Tag</th>
+                        <th>O que representa</th>
+                        <th>Exemplo de Saída</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>{{customer_name}}</code></td>
+                        <td>Nome do cliente</td>
+                        <td>João da Silva</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{order_id}}</code></td>
+                        <td>Identificador (código) do pedido</td>
+                        <td>#PED-876F9A2</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{total_price}}</code></td>
+                        <td>Valor total do pedido formatado (R$)</td>
+                        <td>R$ 299,50</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{financial_status}}</code></td>
+                        <td>Status financeiro em português</td>
+                        <td>Pago / Pendente</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{shipping_address_name}}</code></td>
+                        <td>Nome preenchido no endereço de entrega</td>
+                        <td>Maria da Silva</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{items_list}}</code></td>
+                        <td>Uma tabela HTML pronta listando todos os itens do pedido com valores</td>
+                        <td>(Gera as linhas da tabela de produtos automaticamente)</td>
+                    </tr>
+                    <tr>
+                        <td><code>{{created_at}}</code></td>
+                        <td>Data e hora em que o pedido foi feito</td>
+                        <td>12/04/2026, 17:00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="step">
+            <h2><span class="step-number">5</span> Testando a Configuração</h2>
+            <p>Após preencher no painel a sua Chave da API, o nome e e-mail do remente (que deve obrigatoriamente usar o domínio "Verified" do passo 2), volte ao seu painel Administrativo do 2Bags2rent e clique em <strong>Enviar E-mail de Teste</strong>. Se tiver configurado corretamente, um aviso verde aparecerá na tela e você receberá um e-mail de prova na sua caixa de entrada.</p>
+        </div>
+    </div>
+</body>
+</html>

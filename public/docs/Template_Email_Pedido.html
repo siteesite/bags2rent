@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedido Realizado - Bags2rent</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; color: #111111; -webkit-font-smoothing: antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9f9f9; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <!-- Container Principal -->
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; padding: 40px; border: 1px solid #eaeaea; border-radius: 4px; max-width: 600px; margin: 0 auto;">
+          
+          <!-- Logo / Header -->
+          <tr>
+            <td align="center" style="padding-bottom: 30px; border-bottom: 1px solid #eeeeee;">
+              <h1 style="font-family: 'Times New Roman', Times, serif; font-style: italic; font-size: 28px; letter-spacing: 2px; margin: 0; text-transform: uppercase;">Bags2rent</h1>
+            </td>
+          </tr>
+
+          <!-- Título principal -->
+          <tr>
+            <td align="center" style="padding: 40px 0 20px 0;">
+              <h2 style="margin: 0; font-size: 22px; font-weight: 400; letter-spacing: 1px;">SEU PEDIDO FOI RECEBIDO</h2>
+            </td>
+          </tr>
+
+          <!-- Mensagem Introdutória -->
+          <tr>
+            <td style="padding-bottom: 30px; line-height: 1.6; font-size: 15px; color: #444444; text-align: center;">
+              Olá, <strong>{{customer_name}}</strong>.<br><br>
+              Agradecemos por escolher a Bags2rent. É um prazer ter você conosco! Seu pagamento foi confirmado e já começamos a preparar as suas peças exclusivas.
+            </td>
+          </tr>
+
+          <!-- Detalhes do Pedido -->
+          <tr>
+            <td style="padding: 0 0 30px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fafafa; padding: 20px; border: 1px solid #eeeeee;">
+                <tr>
+                  <td style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #888;">
+                    Nº do Pedido
+                  </td>
+                  <td align="right" style="font-size: 14px; font-weight: bold;">
+                    #{{order_id}}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #888; padding-top: 10px;">
+                    Data do Pedido
+                  </td>
+                  <td align="right" style="font-size: 14px; font-weight: bold; padding-top: 10px;">
+                    {{order_date}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Resumo de Itens -->
+          <tr>
+            <td>
+              <h3 style="font-family: 'Times New Roman', Times, serif; font-size: 18px; font-weight: normal; margin: 0 0 15px 0; border-bottom: 1px solid #000; padding-bottom: 10px; display: inline-block;">Resumo do Aluguel</h3>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom: 30px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <!-- Para sistemas onde você injeta blocos dinâmicos. Caso envie o {{items_html}} pronto, troque todo este bloco pela variável -->
+                {{items_html}}
+                <!-- Exemplo Estático (Remova caso use o injetor automático do Resend/Supabase):
+                <tr>
+                  <td style="padding: 15px 0; border-bottom: 1px solid #eeeeee;">
+                    <strong style="display: block; font-size: 15px;">Vestido Cristal Longo PatBO</strong>
+                    <span style="font-size: 13px; color: #888;">Período: 12/05 a 16/05 | Tamanho: P</span>
+                  </td>
+                  <td align="right" style="padding: 15px 0; border-bottom: 1px solid #eeeeee; font-weight: bold;">
+                    R$ 499,00
+                  </td>
+                </tr>
+                -->
+              </table>
+            </td>
+          </tr>
+
+          <!-- Total -->
+          <tr>
+            <td style="padding-bottom: 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="right" style="font-size: 14px; color: #666; padding-bottom: 5px;">
+                    Subtotal:
+                  </td>
+                  <td align="right" style="font-size: 14px; width: 100px; padding-bottom: 5px;">
+                    {{subtotal}}
+                  </td>
+                </tr>
+                <tr>
+                  <td align="right" style="font-size: 14px; color: #666; padding-bottom: 15px;">
+                    Frete:
+                  </td>
+                  <td align="right" style="font-size: 14px; width: 100px; padding-bottom: 15px;">
+                    {{shipping_cost}}
+                  </td>
+                </tr>
+                <tr>
+                  <td align="right" style="font-weight: bold; font-size: 18px; border-top: 1px solid #000; padding-top: 15px;">
+                    TOTAL:
+                  </td>
+                  <td align="right" style="font-weight: bold; font-size: 18px; width: 100px; border-top: 1px solid #000; padding-top: 15px;">
+                    {{total_amount}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA / Botão -->
+          <tr>
+            <td align="center" style="padding-bottom: 40px;">
+              <a href="{{tracking_link}}" style="background-color: #000000; color: #ffffff; text-decoration: none; padding: 15px 30px; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">
+                Acompanhar Status
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="border-top: 1px solid #eeeeee; padding-top: 30px; font-size: 12px; color: #888888; line-height: 1.5;">
+              <strong>Tem alguma dúvida?</strong><br>
+              Fale conosco pelo <a href="https://wa.me/{{whatsapp_number}}" style="color: #111; text-decoration: underline;">WhatsApp</a> ou responda a este e-mail.<br><br>
+              © Copyright Clothing 2 Rent. Todos os direitos reservados.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

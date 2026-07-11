@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Bags2rent — Aluguel de Moda de Luxo</title>
+    <meta name="description" content="Alugue roupas de luxo das melhores marcas do mundo. A revolução do aluguel fashion." />
+    
+    <!-- Evitar cache no navegador -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <meta name="theme-color" content="#000000" />
+    <link rel="canonical" href="https://bags2rent.com.br/" />
+    <meta property="og:url" content="https://bags2rent.com.br/" />
+    <meta property="og:site_name" content="Bags2rent" />
+    <meta property="og:title" content="Bags2rent — Aluguel de Moda de Luxo" />
+    <meta property="og:description" content="Alugue roupas de luxo das melhores marcas do mundo. A revolução do aluguel fashion." />
+
+    <!-- Script para gerenciar cache e erros de carregamento (Evita tela branca) -->
+    <script>
+      // 1. Detectar erro de carregamento de scripts (ChunkLoadError)
+      window.addEventListener('error', function(e) {
+        if (e.target.tagName === 'SCRIPT') {
+          console.log('Erro ao carregar script. Forçando recarregamento limpo...');
+          window.location.reload(true); // Tenta forçar reload do servidor
+        }
+      }, true);
+
+      // 2. Limpar Service Workers antigos de forma agressiva
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister().then(() => {
+              console.log('Service Worker removido para evitar cache antigo.');
+            });
+          }
+        });
+        
+        // Limpar caches do navegador
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (let name of names) caches.delete(name);
+          });
+        }
+      }
+    </script>
+
+    <!-- PWA: iOS (Apple) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bags2rent" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- PWA: Splash screens iOS (iPhone/iPad) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Favicons (mesma imagem do ícone PWA) -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" rel="stylesheet">
+
+    <!-- Pagar.me -->
+
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
