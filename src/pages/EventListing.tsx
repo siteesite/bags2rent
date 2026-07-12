@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronDown, Heart, Loader2, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useWishlist } from '../context/WishlistContext';
 import { useSiteSettings } from '../context/SettingsContext';
 import { supabase } from '../lib/supabase';
-import { EVENT_GROUPS, OCCASION_METAFIELD_KEY } from './EventCategory';
+import { OCCASION_METAFIELD_KEY } from './EventCategory';
+import { useCategories } from '../context/CategoriesContext';
 
 const SORT_OPTIONS = [
   { value: 'created_at:desc', label: 'Mais Recentes' },
@@ -16,24 +17,51 @@ const SORT_OPTIONS = [
 
 const ITEMS_PER_PAGE = 16;
 
+interface EventGroupInfo {
+  slug: string;
+  label: string;
+  keywords: string[];
+  tagline: string;
+  description: string;
+  image: string;
+  emoji: string;
+}
+
 export function EventListing() {
   const { eventSlug } = useParams<{ eventSlug: string }>();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { settings } = useSiteSettings();
+  const { byType } = useCategories();
 
-  const eventInfo = EVENT_GROUPS.find((e) => e.slug === eventSlug);
+  const events: EventGroupInfo[] = useMemo(
+    () =>
+      byType('evento')
+        .filter((c) => c.is_active)
+        .map((c) => ({
+          slug: c.slug,
+          label: c.name,
+          keywords: c.keywords,
+          tagline: c.metadata?.tagline || '',
+          description: c.metadata?.description || '',
+          image: c.metadata?.image || c.image_url || '/banners/hero_2.png',
+          emoji: c.metadata?.emoji || '',
+        })),
+    [byType('evento')]
+  );
 
-  const [products, setProducts]             = useState<any[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [totalItems, setTotalItems]         = useState(0);
-  const [currentPage, setCurrentPage]       = useState(1);
-  const [sort, setSort]                     = useState('created_at:desc');
-  const [sortOpen, setSortOpen]             = useState(false);
+  const eventInfo = events.find((e) => e.slug === eventSlug);
+
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sort, setSort] = useState('created_at:desc');
+  const [sortOpen, setSortOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [categories, setCategories]         = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
 
-  const filteredEvents = EVENT_GROUPS.filter(ev => 
-    !(settings?.menu_hidden_items || []).includes(ev.label)
+  const filteredEvents = events.filter(
+    (ev) => !(settings?.menu_hidden_items || []).includes(ev.label)
   );
 
   // Reset on slug/sort change
@@ -45,10 +73,13 @@ export function EventListing() {
   // Fetch distinct categories for this event
   useEffect(() => {
     if (!eventInfo) return;
+    const orFilter = eventInfo.keywords
+      .map((kw) => `metafields->>${OCCASION_METAFIELD_KEY}.ilike.%${kw}%`)
+      .join(',');
     supabase
       .from('products')
       .select('category')
-      .ilike(`metafields->>${OCCASION_METAFIELD_KEY}`, `%${eventInfo.keyword}%`)
+      .or(orFilter)
       .eq('status', 'active')
       .then(({ data }) => {
         if (data) {
@@ -66,11 +97,14 @@ export function EventListing() {
       setLoading(true);
       const [col, dir] = sort.split(':');
 
-      // Use PostgreSQL ILIKE on the harmonized metafield key
+      const orFilter = eventInfo!.keywords
+        .map((kw) => `metafields->>${OCCASION_METAFIELD_KEY}.ilike.%${kw}%`)
+        .join(',');
+
       let query = supabase
         .from('products')
         .select('*', { count: 'exact' })
-        .ilike(`metafields->>${OCCASION_METAFIELD_KEY}`, `%${eventInfo!.keyword}%`)
+        .or(orFilter)
         .eq('status', 'active')
         .order(col, { ascending: dir === 'asc' });
 
@@ -90,7 +124,7 @@ export function EventListing() {
     }
 
     fetchProducts();
-  }, [eventSlug, sort, selectedCategory, currentPage]);
+  }, [eventSlug, sort, selectedCategory, currentPage, JSON.stringify(eventInfo?.keywords)]);
 
   if (!eventInfo) {
     return (
@@ -131,14 +165,16 @@ export function EventListing() {
                 Ocasião Ideal
               </p>
               <div className="flex items-center gap-5">
-                <span className="text-5xl">{eventInfo.emoji}</span>
+                {eventInfo.emoji && <span className="text-5xl">{eventInfo.emoji}</span>}
                 <h1 className="font-headline italic text-6xl md:text-8xl leading-none">
                   {eventInfo.label}
                 </h1>
               </div>
-              <p className="font-light text-white/60 text-sm max-w-md mt-4 leading-relaxed">
-                {eventInfo.description}
-              </p>
+              {eventInfo.description && (
+                <p className="font-light text-white/60 text-sm max-w-md mt-4 leading-relaxed">
+                  {eventInfo.description}
+                </p>
+              )}
             </div>
 
             {/* Event switcher */}
@@ -234,7 +270,7 @@ export function EventListing() {
           </div>
         ) : products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-40 gap-4 text-gray-400">
-            <span className="text-5xl">{eventInfo.emoji}</span>
+            {eventInfo.emoji && <span className="text-5xl">{eventInfo.emoji}</span>}
             <p className="font-light text-sm tracking-wide">
               Nenhuma peça encontrada para este evento no momento.
             </p>
@@ -256,7 +292,6 @@ export function EventListing() {
             >
               {products.map((product) => {
                 const prodItem = { ...product, image: product.image_url };
-                // Get the occasion value for this product (harmonized key)
                 const occasionRaw: string = product.metafields?.[OCCASION_METAFIELD_KEY] ?? '';
                 const occasions = String(occasionRaw).split(';').map((s: string) => s.trim()).filter(Boolean);
 

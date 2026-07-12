@@ -8,57 +8,32 @@ import { useCart } from '../context/CartContext';
 import { CartDrawer } from './CartDrawer';
 import { SearchModal } from './SearchModal';
 import { useSiteSettings } from '../context/SettingsContext';
-import { createSlug } from '../utils/slug';
+import { useCategories } from '../context/CategoriesContext';
 
-const MENU_ITEMS = [
+const STATIC_MENU: { label: string; path: string; items?: undefined }[] = [
   { label: 'Home', path: '/' },
   { label: 'New in', path: '/categoria/new-in' },
-  {
-    label: 'Aluguel por Peça',
-    items: [
-      { label: 'Vestidos' },
-      { label: 'Calças' },
-      { label: 'Colar' },
-      { label: 'Bolsas' },
-      { label: 'Blusas/ Top Croppeds' },
-      { label: 'Conjuntos' },
-      { label: 'Kimonos' },
-      { label: 'Saias' },
-      { label: 'Parkas' },
-    ]
-  },
-  {
-    label: 'Aluguel por tamanho',
-    headerPath: '/tamanho',
-    items: [
-      { label: 'P — Pequeno', path: '/tamanho/p' },
-      { label: 'M — Médio',   path: '/tamanho/m' },
-      { label: 'G — Grande',  path: '/tamanho/g' },
-    ]
-  },
-  {
-    label: 'Aluguel por Eventos',
-    headerPath: '/evento',
-    items: [
-      { label: 'Casamento',    path: '/evento/casamento' },
-      { label: 'Festa',        path: '/evento/festa' },
-      { label: 'Formatura',    path: '/evento/formatura' },
-      { label: 'Gala',         path: '/evento/gala' },
-      { label: 'Coquitel',     path: '/evento/coquitel' },
-    ]
-  },
-  {
-    label: 'Nossas Marcas',
-    headerPath: '/marcas',
-    items: [
-      'Acler','Agilità','Animale','AVE RARA','AYA','Candy Brown','Catarina Mina',
-      'Cris Barros','Cult Gaia','Débora Mangabeira','Fabiana Milazzo',
-      'Ganni','Hisha','Jenny Hoo','Le Lis Blanc','Mac Duggal','Mageste',
-      'Mariana Penteado','Marina Bitu','NX','PatBo','Ralph Lauren',
-      'Solace London','Unity Seven','Wanessa Fittireis','ZARA','Zimmermann',
-    ].map((b) => ({ label: b, path: `/categoria?brand=${encodeURIComponent(b)}` }))
-  }
 ];
+
+function getMenuRouteForType(typeSlug: string): string {
+  switch (typeSlug) {
+    case 'peca':    return '/categoria';
+    case 'tamanho': return '/tamanho';
+    case 'evento':  return '/evento';
+    case 'marca':   return '/marcas';
+    default:        return `/categoria`;
+  }
+}
+
+function getItemRoute(typeSlug: string, slug: string): string {
+  switch (typeSlug) {
+    case 'peca':    return `/categoria/${slug}`;
+    case 'tamanho': return `/tamanho/${slug}`;
+    case 'evento':  return `/evento/${slug}`;
+    case 'marca':   return `/categoria?brand=${encodeURIComponent(slug)}`;
+    default:        return `/categoria/${slug}`;
+  }
+}
 
 export function Layout() {
   const { wishlist } = useWishlist();
@@ -68,6 +43,7 @@ export function Layout() {
   const [openMobileDropdown, setOpenMobileDropdown] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { settings, loading } = useSiteSettings();
+  const { types, byType, loading: catsLoading } = useCategories();
   const location = useLocation();
 
   const getAccountLink = () => {
@@ -82,10 +58,16 @@ export function Layout() {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const visibleMenuTypes = types
+    .filter((t) => t.is_active && t.show_in_menu)
+    .sort((a, b) => a.menu_order - b.menu_order);
+
+  const hiddenItems = settings.menu_hidden_items || [];
+
   return (
     <>
       <AnimatePresence mode="wait">
-        {loading && (
+        {(loading || catsLoading) && (
           <motion.div
             key="splash"
             initial={{ opacity: 1 }}
@@ -106,16 +88,16 @@ export function Layout() {
                 <motion.div
                   initial={{ x: "-100%" }}
                   animate={{ x: "100%" }}
-                  transition={{ 
-                    duration: 1.5, 
-                    repeat: Infinity, 
-                    ease: "linear" 
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "linear"
                   }}
                   className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-gray-400 to-transparent"
                 />
               </div>
             </motion.div>
-            
+
             <div className="flex items-center gap-2 text-gray-500 text-[10px] uppercase tracking-[0.2em] font-medium">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>Carregando curadoria</span>
@@ -125,13 +107,13 @@ export function Layout() {
       </AnimatePresence>
 
       <div className="min-h-screen flex flex-col font-sans">
-      
+
       {/* Top Promo Banner */}
-      <div 
+      <div
         className="text-center py-2 text-[10px] sm:text-xs font-light tracking-widest flex items-center justify-center transition-colors duration-500"
-        style={{ 
-          backgroundColor: settings.topbar_bg_color || '#000000', 
-          color: settings.topbar_text_color || '#FFFFFF' 
+        style={{
+          backgroundColor: settings.topbar_bg_color || '#000000',
+          color: settings.topbar_text_color || '#FFFFFF'
         }}
       >
         <span className="mx-auto uppercase">{settings.topbar_text || 'Uso o cupom BAGS1 na sua primeira aluguel'}</span>
@@ -155,55 +137,47 @@ export function Layout() {
                 Bags2rent
               </Link>
             </div>
-            
+
             {/* Desktop: nav links */}
             <div className="hidden lg:flex items-center gap-6">
-              {MENU_ITEMS.filter(item => {
-                if (item.label === 'Aluguel por Peça') return settings.menu_peca_visible;
-                if (item.label === 'Aluguel por tamanho') return settings.menu_tamanho_visible;
-                if (item.label === 'Aluguel por Eventos') return settings.menu_eventos_visible;
-                if (item.label === 'Nossas Marcas') return settings.menu_marcas_visible;
-                return true;
-              }).map((item) => (
-                item.items ? (
-                  <div className="relative group" key={item.label}>
-                    <button className="flex items-center gap-1 text-sm font-medium hover:text-on-surface-variant transition-colors py-5">
-                      {item.label}
+              {STATIC_MENU.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  className="text-sm font-medium hover:text-on-surface-variant transition-colors py-5"
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              {visibleMenuTypes.map((t) => {
+                const items = byType(t.slug).filter((c) => c.is_active && c.menu_visible && !hiddenItems.includes(c.name));
+                const headerPath = getMenuRouteForType(t.slug);
+                return (
+                  <div className="relative group" key={t.id}>
+                    <Link
+                      to={headerPath}
+                      className="flex items-center gap-1 text-sm font-medium hover:text-on-surface-variant transition-colors py-5"
+                    >
+                      {t.menu_label || t.label_plural}
                       <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
-                    </button>
+                    </Link>
                     <div className="absolute top-full left-0 hidden group-hover:block bg-surface-container-lowest border border-outline-variant/20 shadow-lg min-w-[220px] max-h-[60vh] overflow-y-auto z-50">
                       <div className="py-2">
-                        {item.items.filter(subItem => {
-                          const label = typeof subItem === 'string' ? subItem : subItem.label;
-                          return !(settings.menu_hidden_items || []).includes(label);
-                        }).map((subItem) => {
-                          const label = typeof subItem === 'string' ? subItem : subItem.label;
-                          const to = typeof subItem === 'object' && subItem.path
-                            ? subItem.path
-                            : `/categoria/${createSlug(label)}`;
-                          return (
-                            <Link
-                              key={label}
-                              to={to}
-                              className="block px-4 py-2 text-sm text-on-surface hover:bg-surface-container hover:text-primary transition-colors"
-                            >
-                              {label}
-                            </Link>
-                          );
-                        })}
+                        {items.map((c) => (
+                          <Link
+                            key={c.id}
+                            to={getItemRoute(t.slug, c.slug)}
+                            className="block px-4 py-2 text-sm text-on-surface hover:bg-surface-container hover:text-primary transition-colors"
+                          >
+                            {c.name}
+                          </Link>
+                        ))}
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <Link 
-                    key={item.label} 
-                    to={item.path} 
-                    className="text-sm font-medium hover:text-on-surface-variant transition-colors py-5"
-                  >
-                    {item.label}
-                  </Link>
-                )
-              ))}
+                );
+              })}
             </div>
 
             {/* Desktop: right icons */}
@@ -224,7 +198,7 @@ export function Layout() {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
                 )}
               </Link>
-              <button 
+              <button
                 onClick={() => setIsCartOpen(true)}
                 className="p-2 text-on-surface hover:bg-surface-container rounded-full transition-colors relative"
               >
@@ -250,58 +224,57 @@ export function Layout() {
               </button>
             </div>
             <div className="flex-1 py-4">
-              {MENU_ITEMS.filter(item => {
-                if (item.label === 'Aluguel por Peça') return settings.menu_peca_visible;
-                if (item.label === 'Aluguel por tamanho') return settings.menu_tamanho_visible;
-                if (item.label === 'Aluguel por Eventos') return settings.menu_eventos_visible;
-                if (item.label === 'Nossas Marcas') return settings.menu_marcas_visible;
-                return true;
-              }).map((item) => (
+              {STATIC_MENU.map((item) => (
                 <div key={item.label} className="border-b border-outline-variant/10 last:border-0">
-                  {item.items ? (
-                    <div>
-                      <button 
-                        onClick={() => toggleMobileDropdown(item.label)}
-                        className="flex items-center justify-between w-full px-4 py-4 text-left font-medium"
-                      >
-                        {item.label}
-                        <ChevronDown className={`w-4 h-4 transition-transform ${openMobileDropdown === item.label ? 'rotate-180' : ''}`} />
-                      </button>
-                      {openMobileDropdown === item.label && (
-                        <div className="bg-surface-container/30 px-4 py-2 space-y-1">
-                          {item.items.filter(subItem => {
-                            const label = typeof subItem === 'string' ? subItem : subItem.label;
-                            return !(settings.menu_hidden_items || []).includes(label);
-                          }).map((subItem) => {
-                            const label = typeof subItem === 'string' ? subItem : subItem.label;
-                            const to = typeof subItem === 'object' && subItem.path
-                              ? subItem.path
-                              : `/categoria/${createSlug(label)}`;
-                            return (
-                              <Link
-                                key={label}
-                                to={to}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="block py-2 text-sm text-on-surface-variant hover:text-on-surface"
-                              >
-                                {label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <Link 
-                      to={item.path} 
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-4 py-4 font-medium"
-                    >
-                      {item.label}
-                    </Link>
-                  )}
+                  <Link
+                    to={item.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block px-4 py-4 font-medium"
+                  >
+                    {item.label}
+                  </Link>
                 </div>
               ))}
+
+              {visibleMenuTypes.map((t) => {
+                const items = byType(t.slug).filter((c) => c.is_active && c.menu_visible && !hiddenItems.includes(c.name));
+                const headerPath = getMenuRouteForType(t.slug);
+                const dropdownKey = `t:${t.slug}`;
+                return (
+                  <div key={t.id} className="border-b border-outline-variant/10 last:border-0">
+                    <div className="flex items-center justify-between">
+                      <Link
+                        to={headerPath}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex-1 px-4 py-4 font-medium"
+                      >
+                        {t.menu_label || t.label_plural}
+                      </Link>
+                      <button
+                        onClick={() => toggleMobileDropdown(dropdownKey)}
+                        className="px-4 py-4"
+                        aria-label="Expandir"
+                      >
+                        <ChevronDown className={`w-4 h-4 transition-transform ${openMobileDropdown === dropdownKey ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                    {openMobileDropdown === dropdownKey && (
+                      <div className="bg-surface-container/30 px-4 py-2 space-y-1">
+                        {items.map((c) => (
+                          <Link
+                            key={c.id}
+                            to={getItemRoute(t.slug, c.slug)}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block py-2 text-sm text-on-surface-variant hover:text-on-surface"
+                          >
+                            {c.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Conta no menu móvel */}
@@ -330,15 +303,15 @@ export function Layout() {
       {/* Footer */}
       <footer className="hidden lg:block bg-white pt-16 pb-8 border-t border-outline-variant/20 font-light mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
-          
+
           {!location.pathname.startsWith('/admin') && (
             <>
               <div className="max-w-md w-full mb-16">
                 <h4 className="font-medium mb-6 text-sm">Se inscreva em nossa newsletter</h4>
                 <form className="relative flex items-center border-b border-black pb-2" onSubmit={(e) => e.preventDefault()}>
-                  <input 
-                    type="email" 
-                    placeholder="E-mail" 
+                  <input
+                    type="email"
+                    placeholder="E-mail"
                     className="w-full bg-transparent text-sm focus:outline-none focus:ring-0 placeholder-gray-500"
                   />
                   <button type="submit" className="absolute right-0 text-black hover:text-gray-600 transition-colors">
@@ -368,9 +341,9 @@ export function Layout() {
                <Link to="/termos-de-uso" className="hover:underline">Termos de serviço</Link>
             </div>
 
-            <a 
-              href="https://siteesite.com.br/" 
-              target="_blank" 
+            <a
+              href="https://siteesite.com.br/"
+              target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 group order-1 md:order-2 hover:opacity-80 transition-opacity"
               title="Site & Site - Desenvolvimento Web"
@@ -385,7 +358,7 @@ export function Layout() {
 
             {/* WhatsApp Link no Rodapé */}
             {settings.whatsapp_number && (
-              <a 
+              <a
                 href={`https://wa.me/${String(settings.whatsapp_number).replace(/\D/g, '')}${settings.whatsapp_message ? `?text=${encodeURIComponent(settings.whatsapp_message)}` : ''}`}
                 target={settings.whatsapp_new_tab ? "_blank" : "_self"}
                 rel="noopener noreferrer"
@@ -401,9 +374,9 @@ export function Layout() {
       </footer>
 
         {settings.whatsapp_number && (
-          <a 
-            href={`https://wa.me/${String(settings.whatsapp_number).replace(/\D/g, '')}${settings.whatsapp_message ? `?text=${encodeURIComponent(settings.whatsapp_message)}` : ''}`} 
-            target={settings.whatsapp_new_tab ? "_blank" : "_self"} 
+          <a
+            href={`https://wa.me/${String(settings.whatsapp_number).replace(/\D/g, '')}${settings.whatsapp_message ? `?text=${encodeURIComponent(settings.whatsapp_message)}` : ''}`}
+            target={settings.whatsapp_new_tab ? "_blank" : "_self"}
             rel="noopener noreferrer"
             className="fixed bottom-[calc(4rem+1.5rem)] lg:bottom-6 right-6 bg-[#25D366] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-40 flex items-center justify-center cursor-pointer md:bottom-6"
           >
@@ -443,7 +416,7 @@ export function Layout() {
           {/* Favoritos */}
           <Link
             to="/favoritos"
-            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl relative transition-colors ${
+            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-colors relative ${
               isActive('/favoritos') ? 'text-black' : 'text-gray-400 hover:text-gray-700'
             }`}
           >

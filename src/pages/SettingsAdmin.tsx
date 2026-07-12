@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
-import { Save, Loader2, Building2, Key, Info, CheckCircle2, AlertCircle, Truck, ScrollText, CreditCard, LayoutTemplate, Search, X, ImageOff, Mail, Send, Upload, MessageCircle, Palette, Menu, Trash2 } from 'lucide-react';
+import { Save, Loader2, Building2, Key, Info, CheckCircle2, AlertCircle, Truck, ScrollText, CreditCard, LayoutTemplate, Search, X, ImageOff, Mail, Send, Upload, MessageCircle, Palette, Menu, Trash2, FolderTree, ExternalLink } from 'lucide-react';
 import { useSiteSettings } from '../context/SettingsContext';
+import { useCategories } from '../context/CategoriesContext';
 import { clearCloudflareCache } from '../lib/cloudflare';
 
 const DEFAULT_TEMPLATE_CREATED = `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
@@ -135,6 +136,221 @@ interface Settings {
 }
 
 const DEFAULT_ID = '00000000-0000-0000-0000-000000000000';
+
+function MenuTab() {
+  const { types, categories, byType } = useCategories();
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [typeVisibility, setTypeVisibility] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSettings() {
+      const { data } = await supabase
+        .from('settings')
+        .select('menu_hidden_items')
+        .eq('id', DEFAULT_ID)
+        .single();
+      if (cancelled) return;
+      setHiddenItems(Array.isArray(data?.menu_hidden_items) ? data.menu_hidden_items : []);
+      setLoading(false);
+    }
+    loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map: Record<string, boolean> = {};
+    for (const t of types) {
+      map[t.id] = t.show_in_menu;
+    }
+    setTypeVisibility(map);
+  }, [types]);
+
+  const toggleType = async (typeId: string, currentValue: boolean) => {
+    setTypeVisibility((prev) => ({ ...prev, [typeId]: !currentValue }));
+    try {
+      const { error } = await supabase
+        .from('category_types')
+        .update({ show_in_menu: !currentValue, updated_at: new Date().toISOString() })
+        .eq('id', typeId);
+      if (error) throw error;
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Erro ao atualizar tipo: ' + err.message });
+      setTypeVisibility((prev) => ({ ...prev, [typeId]: currentValue }));
+    }
+  };
+
+  const toggleCategory = async (name: string) => {
+    const isHidden = hiddenItems.includes(name);
+    const next = isHidden ? hiddenItems.filter((i) => i !== name) : [...hiddenItems, name];
+    setHiddenItems(next);
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .update({ menu_hidden_items: next, updated_at: new Date().toISOString() })
+        .eq('id', DEFAULT_ID);
+      if (error) throw error;
+      setMessage({ type: 'success', text: 'Visibilidade atualizada!' });
+      setTimeout(() => setMessage(null), 2000);
+    } catch (err: any) {
+      setHiddenItems(hiddenItems);
+      setMessage({ type: 'error', text: 'Erro: ' + err.message });
+    }
+  };
+
+  return (
+    <motion.div
+      key="menu"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-8"
+    >
+      <section className="bg-surface-container-low p-6 md:p-8">
+        <div className="flex items-center justify-between gap-4 mb-8 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-black text-white rounded-sm">
+              <Menu className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-headline italic text-2xl">Menu Principal</h3>
+              <p className="text-sm text-on-surface-variant">
+                Configure a exibição dos tipos e categorias no menu do site.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/admin"
+            onClick={(e) => {
+              e.preventDefault();
+              const buttons = document.querySelectorAll('aside button, nav button');
+              buttons.forEach((b) => {
+                if ((b as HTMLElement).textContent?.includes('Categorias')) {
+                  (b as HTMLButtonElement).click();
+                }
+              });
+            }}
+            className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            <FolderTree className="w-4 h-4" />
+            Gerenciar Tipos e Categorias
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
+        {message && (
+          <div
+            className={`mb-4 p-3 border text-xs font-medium ${
+              message.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <h4 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">
+          Tipos de Categoria no Menu
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mb-12">
+          {types.filter((t) => t.is_active).map((t) => (
+            <div
+              key={t.id}
+              className="flex items-center justify-between p-4 bg-white border border-outline-variant/30 hover:border-black transition-colors"
+            >
+              <div>
+                <span className="text-sm font-medium tracking-tight block">{t.menu_label || t.label_plural}</span>
+                <span className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">
+                  {categories.filter((c) => c.type_id === t.id).length} categorias
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={typeVisibility[t.id] ?? t.show_in_menu}
+                  onChange={() => toggleType(t.id, t.show_in_menu)}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+              </label>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 p-4 bg-black/5 border-l-4 border-black mb-12">
+          <p className="text-xs text-black leading-relaxed">
+            <strong>Sugestão:</strong> Use o botão <em>Gerenciar Tipos e Categorias</em> acima para criar novos tipos ou editar categorias. Aqui você controla apenas a visibilidade no menu do site.
+          </p>
+        </div>
+
+        <div className="space-y-12">
+          <h4 className="font-headline italic text-xl border-b border-outline-variant/20 pb-2">
+            Configurar Submenus (ocultar individualmente)
+          </h4>
+
+          {loading ? (
+            <div className="flex items-center gap-2 py-8 text-on-surface-variant">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Carregando visibilidade...</span>
+            </div>
+          ) : (
+            types
+              .filter((t) => t.is_active && (typeVisibility[t.id] ?? t.show_in_menu))
+              .map((t) => {
+                const items = byType(t.slug).filter((c) => c.is_active);
+                return (
+                  <div key={t.id} className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-black"></div>
+                      <h5 className="text-xs font-bold uppercase tracking-widest">
+                        {t.menu_label || t.label_plural}
+                      </h5>
+                    </div>
+                    {items.length === 0 ? (
+                      <p className="text-xs text-on-surface-variant italic pl-4">
+                        Nenhuma categoria cadastrada.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {items.map((c) => {
+                          const isHidden = hiddenItems.includes(c.name);
+                          return (
+                            <div
+                              key={c.id}
+                              className="flex items-center justify-between p-3 bg-white border border-outline-variant/20 rounded-sm hover:border-black/30 transition-colors"
+                            >
+                              <span className="text-[11px] font-medium leading-tight truncate mr-2" title={c.name}>
+                                {c.name}
+                              </span>
+                              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={!isHidden}
+                                  onChange={() => toggleCategory(c.name)}
+                                />
+                                <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-black"></div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+          )}
+        </div>
+      </section>
+    </motion.div>
+  );
+}
 
 export function SettingsAdmin() {
   const [settings, setSettings] = useState<Settings>({
@@ -2208,119 +2424,7 @@ export function SettingsAdmin() {
             </motion.div>
           )}
           {activeTab === 'menu' && (
-            <motion.div
-              key="menu"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
-            >
-              <section className="bg-surface-container-low p-6 md:p-8">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="p-3 bg-black text-white rounded-sm">
-                    <Menu className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-headline italic text-2xl">Menu Principal</h3>
-                    <p className="text-sm text-on-surface-variant">Configure a exibição das categorias no menu do site.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-                  {[
-                    { key: 'menu_peca_visible', label: 'Aluguel por Peça' },
-                    { key: 'menu_tamanho_visible', label: 'Aluguel por tamanho' },
-                    { key: 'menu_eventos_visible', label: 'Aluguel por Eventos' },
-                    { key: 'menu_marcas_visible', label: 'Nossas Marcas' },
-                  ].map((item) => (
-                    <div 
-                      key={item.key}
-                      className="flex items-center justify-between p-4 bg-white border border-outline-variant/30 hover:border-black transition-colors"
-                    >
-                      <span className="text-sm font-medium tracking-tight">{item.label}</span>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={settings[item.key as keyof Settings] as boolean ?? true}
-                          onChange={(e) => setSettings({ ...settings, [item.key]: e.target.checked })}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-8 p-4 bg-black/5 border-l-4 border-black mb-12">
-                  <p className="text-xs text-black leading-relaxed">
-                    <strong>Sugestão:</strong> Desative categorias que ainda não possuem produtos cadastrados ou que não fazem parte da sua estratégia atual de exibição.
-                  </p>
-                </div>
-
-                <div className="space-y-12">
-                  <h4 className="font-headline italic text-xl border-b border-outline-variant/20 pb-2">Configurar Submenus</h4>
-                  
-                  {[
-                    { 
-                      parent: 'Aluguel por Peça', 
-                      visible: settings.menu_peca_visible,
-                      items: ['Vestidos', 'Calças', 'Colar', 'Bolsas', 'Blusas/ Top Croppeds', 'Conjuntos', 'Kimonos', 'Saias', 'Parkas'] 
-                    },
-                    { 
-                      parent: 'Aluguel por tamanho', 
-                      visible: settings.menu_tamanho_visible,
-                      items: ['P — Pequeno', 'M — Médio', 'G — Grande'] 
-                    },
-                    {
-                      parent: 'Aluguel por Eventos',
-                      visible: settings.menu_eventos_visible,
-                      items: ['Casamento', 'Festa', 'Formatura', 'Gala', 'Coquitel']
-                    },
-                    { 
-                      parent: 'Nossas Marcas', 
-                      visible: settings.menu_marcas_visible,
-                      items: ['Acler','Agilità','Animale','AVE RARA','AYA','Candy Brown','Catarina Mina','Cris Barros','Cult Gaia','Débora Mangabeira','Fabiana Milazzo','Ganni','Hisha','Jenny Hoo','Le Lis Blanc','Mac Duggal','Mageste','Mariana Penteado','Marina Bitu','NX','PatBo','Ralph Lauren','Solace London','Unity Seven','Wanessa Fittireis','ZARA','Zimmermann'] 
-                    }
-                  ].map((group) => (
-                    <div key={group.parent} className={`space-y-4 ${!group.visible ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-black"></div>
-                        <h5 className="text-xs font-bold uppercase tracking-widest">{group.parent}</h5>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {group.items.map((item) => {
-                          const isHidden = (settings.menu_hidden_items || []).includes(item);
-                          return (
-                            <div 
-                              key={item}
-                              className="flex items-center justify-between p-3 bg-white border border-outline-variant/20 rounded-sm hover:border-black/30 transition-colors"
-                            >
-                              <span className="text-[11px] font-medium leading-tight truncate mr-2" title={item}>{item}</span>
-                              <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                                <input 
-                                  type="checkbox"
-                                  className="sr-only peer"
-                                  checked={!isHidden}
-                                  onChange={(e) => {
-                                    const currentHidden = settings.menu_hidden_items || [];
-                                    const nextHidden = e.target.checked 
-                                      ? currentHidden.filter(i => i !== item)
-                                      : [...currentHidden, item];
-                                    setSettings({ ...settings, menu_hidden_items: nextHidden });
-                                  }}
-                                />
-                                <div className="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3.5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-black"></div>
-                              </label>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </motion.div>
+            <MenuTab />
           )}
         </AnimatePresence>
 

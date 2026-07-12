@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, ShoppingBag, Users, Tag, LogOut, Calendar, Settings, Ticket, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Users, Tag, LogOut, Calendar, Settings, Ticket, RefreshCw, FolderTree } from 'lucide-react';
 import { clearCloudflareCache } from '../lib/cloudflare';
 import { useNavigate } from 'react-router-dom';
 import { Orders } from './Orders';
@@ -11,6 +11,7 @@ import { Dashboard } from './Dashboard';
 import { CalendarAdmin } from './CalendarAdmin';
 import { SettingsAdmin } from './SettingsAdmin';
 import { CouponsAdmin } from './CouponsAdmin';
+import { CategoriesAdmin } from './CategoriesAdmin';
 
 export function Admin() {
   const { user, signOut } = useAuth();
@@ -83,11 +84,17 @@ export function Admin() {
               >
                 <LayoutDashboard className="w-4 h-4" /> Dashboard
               </button>
-              <button 
-                onClick={() => setActiveTab('produtos')} 
+              <button
+                onClick={() => setActiveTab('produtos')}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-left ${activeTab === 'produtos' ? 'bg-primary text-on-primary' : 'hover:bg-surface-container/50'}`}
               >
                 <Tag className="w-4 h-4" /> Produtos
+              </button>
+              <button
+                onClick={() => setActiveTab('categorias')}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-left ${activeTab === 'categorias' ? 'bg-primary text-on-primary' : 'hover:bg-surface-container/50'}`}
+              >
+                <FolderTree className="w-4 h-4" /> Categorias
               </button>
               <button 
                 onClick={() => setActiveTab('pedidos')}
@@ -134,6 +141,9 @@ export function Admin() {
 
           {activeTab === 'produtos' && (
             <ProductsAdmin />
+          )}
+          {activeTab === 'categorias' && (
+            <CategoriesAdmin />
           )}
           {activeTab === 'pedidos' && (
             <Orders />

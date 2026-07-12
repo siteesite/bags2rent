@@ -3,18 +3,10 @@ import { Link } from 'react-router-dom';
 import { adminDb, adminStorage } from '../lib/adminClient';
 import { Plus, Upload, Loader2, Eye, Edit, Trash2, X, Search, ChevronLeft, ChevronRight, Sparkles, Brain } from 'lucide-react';
 import { useSiteSettings } from '../context/SettingsContext';
+import { useCategories } from '../context/CategoriesContext';
 import { clearCloudflareCache } from '../lib/cloudflare';
 import Papa from 'papaparse';
 
-const PECAS = ['Vestidos', 'Calças', 'Bolsas', 'Blusas/ Top Croppeds', 'Conjuntos', 'Kimonos', 'Saias', 'Parkas', 'Colar'];
-const TAMANHOS = [
-  { label: 'P — 34 a 38', value: 'P' },
-  { label: 'M — 38 a 40', value: 'M' },
-  { label: 'G — 40 a 44', value: 'G' },
-  { label: 'Tamanho Único', value: 'tamanho-unico' },
-];
-const EVENTOS = ['Casamento', 'Coquitel', 'Festa', 'Formatura', 'Gala'];
-const MARCAS = ['Acler', 'Agilitá', 'Animale', 'AVE RARA', 'AYA', 'Candy Brown', 'Catarina Mina', 'Cloude', 'Corporeum', 'Cris Barros', 'Cult Gaia', 'Débora Mangabeira', 'ER', 'Fabiana Milazzo', 'Fátima Scofield', 'Fasô', 'Ganni', 'Hisha', 'Jenny Hoo', 'Laura Cangussu', 'Le Lis Blanc', 'Mac Duggal', 'Mageste', 'Mariana Penteado', 'Marina Bitu', 'Mayara Junges', 'NX', 'Oásis', 'PatBo', 'Ralph Lauren', 'Solace London', 'Unity Seven', 'Wanessa Fittireis', 'Zara', 'Zazi White', 'Zimmermann'];
 const COLOR_MAP: { name: string; hex: string }[] = [
   { name: 'Amarelo',      hex: '#F5C542' },
   { name: 'Azul',        hex: '#2563EB' },
@@ -74,6 +66,24 @@ export function ProductsAdmin() {
   const [showCSV, setShowCSV] = useState(false);
   const [isGeneratingSEO, setIsGeneratingSEO] = useState(false);
   const { settings } = useSiteSettings();
+  const { byType } = useCategories();
+
+  const PECAS = byType('peca').filter((c) => c.is_active).map((c) => ({
+    label: c.name,
+    value: c.keywords[0] || c.name,
+  }));
+  const TAMANHOS = byType('tamanho').filter((c) => c.is_active).map((c) => ({
+    label: c.metadata?.description ? `${c.name} — ${c.metadata.description}` : c.name,
+    value: c.keywords[0] || c.name,
+  }));
+  const EVENTOS = byType('evento').filter((c) => c.is_active).map((c) => ({
+    label: c.name,
+    value: c.name,
+  }));
+  const MARCAS = byType('marca').filter((c) => c.is_active).map((c) => ({
+    label: c.name,
+    value: c.keywords[0] || c.name,
+  }));
 
   const generateSeoWithDeepseek = async () => {
     if (!settings?.deepseek_api_key) {
@@ -391,7 +401,10 @@ Critérios:
       clearCloudflareCache();
     } catch (err: any) {
       console.error(err);
-      const msg = err.message || '';
+      const msg =
+        typeof err === 'string'
+          ? err
+          : err?.message || err?.error_description || JSON.stringify(err || '');
       if (msg.includes('products_handle_key') || msg.includes('duplicate key')) {
         alert('Erro: Já existe um produto com nome muito similar. Tente um nome ligeiramente diferente.');
       } else {
@@ -714,13 +727,13 @@ Critérios:
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-on-surface">Tipo de Peça (Category)</label>
-                  <select 
+                  <select
                     value={manualProduct.category}
                     onChange={(e) => setManualProduct({...manualProduct, category: e.target.value})}
                     className="w-full border border-outline-variant bg-transparent px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors appearance-none"
                   >
                     <option value="">Selecione...</option>
-                    {PECAS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {PECAS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </div>
 
@@ -766,10 +779,10 @@ Critérios:
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border border-outline-variant bg-surface-container-lowest">
                     {EVENTOS.map(ev => {
                       const selected = Array.isArray(manualProduct.event)
-                        ? manualProduct.event.includes(ev)
+                        ? manualProduct.event.includes(ev.value)
                         : false;
                       return (
-                        <label key={ev} className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded border transition-colors ${
+                        <label key={ev.value} className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded border transition-colors ${
                           selected
                             ? 'bg-primary/10 border-primary text-primary font-semibold'
                             : 'border-outline-variant/40 hover:bg-surface-container'
@@ -781,12 +794,12 @@ Critérios:
                             onChange={() => {
                               const current = Array.isArray(manualProduct.event) ? manualProduct.event : [];
                               const updated = selected
-                                ? current.filter(e => e !== ev)
-                                : [...current, ev];
+                                ? current.filter(e => e !== ev.value)
+                                : [...current, ev.value];
                               setManualProduct({ ...manualProduct, event: updated });
                             }}
                           />
-                          <span className="text-sm leading-tight">{ev}</span>
+                          <span className="text-sm leading-tight">{ev.label}</span>
                         </label>
                       );
                     })}
@@ -800,13 +813,13 @@ Critérios:
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-on-surface">Marca (Vendor)</label>
-                  <select 
+                  <select
                     value={manualProduct.brand}
                     onChange={(e) => setManualProduct({...manualProduct, brand: e.target.value})}
                     className="w-full border border-outline-variant bg-transparent px-4 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors appearance-none"
                   >
                     <option value="">Selecione...</option>
-                    {MARCAS.map(m => <option key={m} value={m}>{m}</option>)}
+                    {MARCAS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 </div>
 

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
-import { ChevronDown, SlidersHorizontal, Heart, Search, Loader2, Check } from 'lucide-react';
+import { ChevronDown, Heart, Loader2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useWishlist } from '../context/WishlistContext';
 import { useSiteSettings } from '../context/SettingsContext';
+import { useCategories } from '../context/CategoriesContext';
 import { supabase } from '../lib/supabase';
 
 const SORT_OPTIONS = [
@@ -29,26 +30,28 @@ const PRICE_OPTIONS = [
 export function Category() {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { settings } = useSiteSettings();
+  const { byType } = useCategories();
   const { categorySlug } = useParams();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const brand = searchParams.get('brand');
-  
-  // Map singular/plural slugs to display titles and DB queries
-  const slugToCategory: Record<string, { title: string, matches: string[] }> = {
-    'vestidos': { title: 'Vestidos', matches: ['Vestidos', 'Vestido'] },
-    'calcas': { title: 'Calças', matches: ['Calças', 'Calça'] },
-    'bolsas': { title: 'Bolsas', matches: ['Bolsas', 'Bolsa'] },
-    'kimonos': { title: 'Kimonos', matches: ['Kimonos', 'Kimono'] },
-    'saias': { title: 'Saias', matches: ['Saias', 'Saia'] },
-    'parkas': { title: 'Parkas', matches: ['Parkas', 'Parka'] },
-    'conjuntos': { title: 'Conjuntos', matches: ['Conjuntos', 'Conjunto'] },
-    'blusas-top-croppeds': { title: 'Blusas / Top Croppeds', matches: ['Blusas/ Top Croppeds', 'Blusas', 'Blusa', 'Top Cropped', 'Top Croppeds', 'Top', 'Cropped'] },
-    'colar': { title: 'Colares', matches: ['Colar', 'Colares'] },
-    'new-in': { title: 'New In', matches: [] }
-  };
 
-  const categoryInfo = categorySlug ? slugToCategory[categorySlug] : { title: 'Todos os Produtos', matches: [] };
+  const pecaCats = byType('peca').filter((c) => c.is_active);
+
+  const categoryInfo = useMemo(() => {
+    if (categorySlug === 'new-in' || !categorySlug) {
+      return categorySlug === 'new-in'
+        ? { title: 'New In', matches: [] as string[], slug: 'new-in' }
+        : { title: 'Todos os Produtos', matches: [] as string[], slug: '' };
+    }
+    const found = pecaCats.find((c) => c.slug === categorySlug);
+    return {
+      title: found?.name || categorySlug,
+      matches: found?.keywords || [],
+      slug: categorySlug,
+    };
+  }, [categorySlug, pecaCats]);
+
   const categoryTitle = brand ? `Produtos: ${brand}` : categoryInfo.title;
 
   const [dbProducts, setDbProducts] = useState<any[]>([]);
@@ -56,17 +59,15 @@ export function Category() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const ITEMS_PER_PAGE = 16;
-  
-  // Filter & Sort States
+
   const [sort, setSort] = useState('created_at:desc');
   const [availability, setAvailability] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
-  
+
   const [sortOpen, setSortOpen] = useState(false);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -80,7 +81,6 @@ export function Category() {
     return () => window.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Reseta a pagina se mudar de categoria ou filtros
   useEffect(() => {
     setCurrentPage(1);
   }, [categoryTitle, sort, availability, priceRange]);
@@ -89,24 +89,19 @@ export function Category() {
     async function fetchProducts() {
       setLoading(true);
       let query = supabase.from('products').select('*', { count: 'exact' }).eq('status', 'active');
-      
-      if (categorySlug && categorySlug !== 'new-in') {
-        const possibleMatches = categoryInfo.matches;
-        if (possibleMatches.length > 0) {
-          query = query.in('category', possibleMatches);
-        }
+
+      if (categorySlug && categorySlug !== 'new-in' && categoryInfo.matches.length > 0) {
+        query = query.in('category', categoryInfo.matches);
       }
-      
+
       if (brand) {
         query = query.eq('brand', brand);
       }
-      
-      // Apply Availability Filter
+
       if (availability === 'in_stock') {
         query = query.gt('stock_qty', 0);
       }
 
-      // Apply Price Filter
       if (priceRange !== 'all') {
         if (priceRange === '0-500') query = query.lte('price', 500);
         else if (priceRange === '500-1000') query = query.gte('price', 500).lte('price', 1000);
@@ -114,17 +109,15 @@ export function Category() {
         else if (priceRange === '2000+') query = query.gte('price', 2000);
       }
 
-      // Apply Sorting
       const [col, dir] = sort.split(':');
       query = query.order(col, { ascending: dir === 'asc' });
 
-      // Pagination
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       query = query.range(from, to);
 
       const { data, count, error } = await query;
-      
+
       if (!error && data) {
         setDbProducts(data);
         if (count !== null) setTotalItems(count);
@@ -133,7 +126,7 @@ export function Category() {
       }
       setLoading(false);
     }
-    
+
     fetchProducts();
   }, [categoryTitle, currentPage, brand, sort, availability, priceRange]);
 
@@ -143,21 +136,18 @@ export function Category() {
 
   return (
     <div className="bg-white min-h-screen pt-8 pb-24 font-sans">
-      
-      {/* Page Header */}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
         <h1 className="text-3xl lg:text-[2.5rem] font-light text-black tracking-wide">{categoryTitle}</h1>
       </div>
 
-      {/* Filter Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10 border-b border-gray-200 pb-4">
         <div className="flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto flex-wrap">
             <span className="font-medium text-black text-[9px] uppercase tracking-widest">Filtros:</span>
-            
-            {/* Availability Dropdown */}
+
             <div className="relative filter-dropdown">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setAvailabilityOpen(!availabilityOpen);
@@ -170,7 +160,7 @@ export function Category() {
               </button>
               <AnimatePresence>
                 {availabilityOpen && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
@@ -197,9 +187,8 @@ export function Category() {
               </AnimatePresence>
             </div>
 
-            {/* Price Dropdown */}
             <div className="relative filter-dropdown">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setPriceOpen(!priceOpen);
@@ -212,7 +201,7 @@ export function Category() {
               </button>
               <AnimatePresence>
                 {priceOpen && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
@@ -239,26 +228,25 @@ export function Category() {
               </AnimatePresence>
             </div>
 
-            {/* Size quick-links */}
             <div className="flex items-center gap-2 border-l border-gray-200 pl-4 ml-2">
               <span className="text-[9px] uppercase tracking-widest text-gray-400 mr-1">Tamanho:</span>
-              {(['p', 'm', 'g'] as const).map((s) => (
+              {byType('tamanho').filter((c) => c.is_active && c.slug !== 'tamanho-unico').map((s) => (
                 <Link
-                  key={s}
-                  to={`/tamanho/${s}`}
+                  key={s.slug}
+                  to={`/tamanho/${s.slug}`}
                   className="px-2.5 py-1 border border-gray-300 text-[9px] uppercase tracking-widest text-gray-500 hover:border-black hover:text-black hover:bg-black hover:text-white transition-all duration-200"
                 >
-                  {s.toUpperCase()}
+                  {s.name.toUpperCase()}
                 </Link>
               ))}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
             <div className="flex items-center gap-2">
               <span>Ordenar por:</span>
               <div className="relative filter-dropdown">
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setSortOpen(!sortOpen);
@@ -271,7 +259,7 @@ export function Category() {
                 </button>
                 <AnimatePresence>
                   {sortOpen && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
@@ -303,9 +291,7 @@ export function Category() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Product Grid */}
         {loading ? (
           <div className="flex justify-center items-center py-32 text-gray-500">
             <Loader2 className="w-8 h-8 animate-spin" />
@@ -323,14 +309,14 @@ export function Category() {
                 <div key={product.id} className="group flex flex-col">
                   <div className="relative aspect-[9/16] bg-gray-50 overflow-hidden mb-4">
                     <Link to={`/produto/${product.handle}`} state={{ product: prodItem }}>
-                      <img 
-                        src={prodItem.image} 
-                        alt={prodItem.name} 
+                      <img
+                        src={prodItem.image}
+                        alt={prodItem.name}
                         className="w-full h-full object-contain transition-opacity duration-300 group-hover:opacity-90"
                         referrerPolicy="no-referrer"
                       />
                     </Link>
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.preventDefault();
                         toggleWishlist(prodItem);
@@ -354,13 +340,12 @@ export function Category() {
           </div>
         )}
 
-        {/* Pagination */}
         {totalItems > ITEMS_PER_PAGE && (
           <div className="mt-16 pt-8 border-t border-gray-200">
             <nav className="flex justify-center items-center gap-4 text-xs text-gray-500">
               {Array.from({ length: Math.ceil(totalItems / ITEMS_PER_PAGE) }).map((_, i) => (
-                <button 
-                  key={i} 
+                <button
+                  key={i}
                   onClick={() => {
                     setCurrentPage(i + 1);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -371,12 +356,12 @@ export function Category() {
                 </button>
               ))}
               {currentPage < Math.ceil(totalItems / ITEMS_PER_PAGE) && (
-                <button 
+                <button
                   onClick={() => {
                     setCurrentPage(prev => prev + 1);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  aria-label="Next page" 
+                  aria-label="Next page"
                   className="ml-2 text-gray-400 hover:text-black transition-colors"
                 >
                   <ChevronDown className="w-3 h-3 -rotate-90" />

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { ProductCard } from '../components/ProductCard';
 import { useSiteSettings } from '../context/SettingsContext';
+import { useCategories } from '../context/CategoriesContext';
 
 interface Product {
   id: string;
@@ -27,27 +28,9 @@ interface HeroItem {
   handle?: string;
 }
 
-const brands = [
-  { name: 'Saint Laurent', logo: '/brands/saint_laurent.png' },
-  { name: 'Gucci', logo: '/brands/gucci.png' },
-  { name: 'Prada', logo: '/brands/prada.png' },
-  { name: 'Chanel', logo: '/brands/chanel.png' },
-  { name: 'Dior', logo: '/brands/dior.png' },
-  { name: 'Valentino', logo: '/brands/valentino.png' },
-  { name: 'Zimmermann', logo: '/brands/zimmermann.png' },
-  { name: 'PatBo', logo: '/brands/patbo.png' },
-  { name: 'Animale', logo: '/brands/animale.png' },
-  { name: 'Ralph Lauren', logo: '/brands/ralph_lauren.png' },
-  { name: 'Cult Gaia', logo: '/brands/cult_gaia.png' },
-  { name: 'Agilitá', logo: '/brands/agilita.png' },
-  { name: 'Cris Barros', logo: '/brands/cris_barros.png' },
-  { name: 'Fabiana Milazzo', logo: '/brands/fabiana_milazzo.png' },
-  { name: 'Le Lis Blanc', logo: '/brands/le_lis_blanc.png' },
-  { name: 'Ganni', logo: '/brands/ganni.png' },
-];
-
 export function Home() {
   const { settings, loading: settingsLoading } = useSiteSettings();
+  const { byType } = useCategories();
   const [loading, setLoading] = useState(true);
   const [heroProducts, setHeroProducts] = useState<(HeroItem | null)[]>([null, null, null]);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -563,45 +546,124 @@ export function Home() {
         </div>
       </section>
 
-      {/* Brands Logos Carousel */}
-      <section className="py-32 bg-black overflow-hidden border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 text-center mb-20">
-           <h3 className="font-headline italic text-3xl text-white tracking-widest">Marcas Parceiras</h3>
-        </div>
-        
-        <div className="relative flex overflow-hidden">
-          <motion.div
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ 
-              repeat: Infinity, 
-              duration: 40, 
-              ease: "linear",
-              repeatType: "loop"
-            }}
-            className="flex gap-16 md:gap-24 items-center whitespace-nowrap px-12"
-          >
-            {[...brands, ...brands].map((brand, index) => (
-              <Link 
-                key={`${brand.name}-${index}`}
-                to={`/categoria?brand=${brand.name}`} 
-                className="flex-shrink-0 group transition-all duration-500"
-              >
-                <img 
-                  src={brand.logo} 
-                  alt={brand.name} 
-                  className="h-24 md:h-32 w-auto object-contain opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500 grayscale group-hover:grayscale-0 mix-blend-screen" 
-                />
-              </Link>
-            ))}
-          </motion.div>
-        </div>
+      {/* Brands Logos Carousel (dinâmico via categorias com imagem) */}
+      <BrandCarousel byType={byType} />
 
-        <div className="flex justify-center mt-24">
-           <Link to="/categoria" className="px-16 py-4 border border-white text-white text-[10px] uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all duration-500 font-bold">
-            Explorar Tudo
-          </Link>
-        </div>
-      </section>
+      {/* Categorias em destaque (tipos com has_image e show_on_homepage) */}
+      <ImageCategoryShowcase byType={byType} />
     </div>
+  );
+}
+
+function BrandCarousel({ byType }: { byType: (slug: string) => any[] }) {
+  const brandCats = byType('marca').filter((c) => c.is_active && (c.image_url || c.metadata?.logo));
+  const brands = brandCats.map((c) => ({
+    name: c.name,
+    logo: c.image_url || c.metadata?.logo,
+    slug: c.slug,
+  }));
+  if (brands.length === 0) return null;
+
+  return (
+    <section className="py-32 bg-black overflow-hidden border-t border-white/5">
+      <div className="max-w-7xl mx-auto px-4 text-center mb-20">
+         <h3 className="font-headline italic text-3xl text-white tracking-widest">Marcas Parceiras</h3>
+      </div>
+
+      <div className="relative flex overflow-hidden">
+        <motion.div
+          animate={{ x: ["0%", "-50%"] }}
+          transition={{
+            repeat: Infinity,
+            duration: 40,
+            ease: "linear",
+            repeatType: "loop"
+          }}
+          className="flex gap-16 md:gap-24 items-center whitespace-nowrap px-12"
+        >
+          {[...brands, ...brands].map((brand, index) => (
+            <Link
+              key={`${brand.slug}-${index}`}
+              to={`/categoria?brand=${encodeURIComponent(brand.name)}`}
+              className="flex-shrink-0 group transition-all duration-500"
+            >
+              <img
+                src={brand.logo}
+                alt={brand.name}
+                className="h-24 md:h-32 w-auto object-contain opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500 grayscale group-hover:grayscale-0 mix-blend-screen"
+              />
+            </Link>
+          ))}
+        </motion.div>
+      </div>
+
+      <div className="flex justify-center mt-24">
+         <Link to="/marcas" className="px-16 py-4 border border-white text-white text-[10px] uppercase tracking-[0.4em] hover:bg-white hover:text-black transition-all duration-500 font-bold">
+          Ver Todas as Marcas
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function ImageCategoryShowcase({ byType }: { byType: (slug: string) => any[] }) {
+  const types = ['peca', 'evento', 'tamanho'] as const;
+  const blocks = types
+    .map((slug) => {
+      const cats = byType(slug).filter((c) => c.is_active && c.menu_visible && c.image_url);
+      return { slug, cats };
+    })
+    .filter((b) => b.cats.length > 0);
+
+  if (blocks.length === 0) return null;
+
+  return (
+    <>
+      {blocks.map(({ slug, cats }) => {
+        const title = slug === 'peca' ? 'Tipos de Peça' : slug === 'evento' ? 'Eventos' : 'Tamanhos';
+        return (
+          <section key={slug} className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+            <div className="flex justify-between items-center mb-12">
+              <div className="space-y-1">
+                <h2 className="font-headline italic text-4xl">{title}</h2>
+                <div className="h-[1px] w-24 bg-primary"></div>
+              </div>
+              <Link
+                to={slug === 'peca' ? '/categoria' : slug === 'evento' ? '/evento' : '/tamanho'}
+                className="text-xs uppercase tracking-widest hover:underline decoration-1 underline-offset-4 text-black"
+              >
+                Ver Tudo
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {cats.slice(0, 12).map((c) => {
+                const href =
+                  slug === 'peca'
+                    ? `/categoria/${c.slug}`
+                    : slug === 'evento'
+                    ? `/evento/${c.slug}`
+                    : `/tamanho/${c.slug}`;
+                return (
+                  <Link
+                    key={c.id}
+                    to={href}
+                    className="group relative aspect-square bg-gray-50 hover:bg-black transition-all duration-500 flex flex-col items-center justify-center p-4 gap-2 overflow-hidden"
+                  >
+                    <img
+                      src={c.image_url}
+                      alt={c.name}
+                      className="h-12 w-12 object-contain mix-blend-multiply group-hover:mix-blend-screen group-hover:invert transition-all duration-500"
+                    />
+                    <span className="text-[9px] uppercase tracking-widest text-gray-600 group-hover:text-white/70 transition-colors duration-300 text-center leading-tight">
+                      {c.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </>
   );
 }

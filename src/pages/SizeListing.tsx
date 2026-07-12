@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronDown, Heart, Loader2, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useWishlist } from '../context/WishlistContext';
 import { supabase } from '../lib/supabase';
-import { SIZE_GROUPS } from './SizeCategory';
-import { formatSize, parseProductSizes } from '../lib/sizes';
+import { useCategories } from '../context/CategoriesContext';
 
 const SORT_OPTIONS = [
   { value: 'created_at:desc', label: 'Mais Recentes' },
@@ -16,11 +15,42 @@ const SORT_OPTIONS = [
 
 const ITEMS_PER_PAGE = 16;
 
+interface SizeGroupInfo {
+  slug: string;
+  label: string;
+  keyword: string;
+  description: string;
+  numericRange: string;
+  dbSizes: string[];
+  image: string;
+  tagline: string;
+  bust: string;
+}
+
 export function SizeListing() {
   const { sizeSlug } = useParams<{ sizeSlug: string }>();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { byType } = useCategories();
 
-  const sizeInfo = SIZE_GROUPS.find((g) => g.slug === sizeSlug);
+  const groups: SizeGroupInfo[] = useMemo(
+    () =>
+      byType('tamanho')
+        .filter((c) => c.is_active && c.slug !== 'tamanho-unico')
+        .map((c) => ({
+          slug: c.slug,
+          label: c.name,
+          keyword: c.name,
+          description: c.metadata?.description || c.name,
+          numericRange: c.metadata?.numericRange || '',
+          dbSizes: c.keywords,
+          image: c.metadata?.image || c.image_url || '/banners/hero_2.png',
+          tagline: c.metadata?.tagline || '',
+          bust: c.metadata?.bust || '',
+        })),
+    [byType('tamanho')]
+  );
+
+  const sizeInfo = groups.find((g) => g.slug === sizeSlug);
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +126,7 @@ export function SizeListing() {
     }
 
     fetchProducts();
-  }, [sizeSlug, sort, selectedCategory, currentPage]);
+  }, [sizeSlug, sort, selectedCategory, currentPage, JSON.stringify(sizeInfo?.dbSizes)]);
 
   if (!sizeInfo) {
     return (
@@ -126,7 +156,8 @@ export function SizeListing() {
               Alugue por Tamanho
             </Link>
             <p className="font-label text-[9px] uppercase tracking-[0.4em] text-white/40 mb-2">
-              {sizeInfo.description} · {sizeInfo.numericRange}
+              {sizeInfo.description}
+              {sizeInfo.numericRange ? ` · ${sizeInfo.numericRange}` : ''}
             </p>
             <div className="flex items-baseline gap-6">
               <span className="font-headline italic text-[8rem] md:text-[10rem] leading-none select-none">
@@ -152,21 +183,23 @@ export function SizeListing() {
           </div>
 
           {/* Size switcher */}
-          <div className="flex gap-3 flex-wrap">
-            {SIZE_GROUPS.map((g) => (
-              <Link
-                key={g.slug}
-                to={`/tamanho/${g.slug}`}
-                className={`px-6 py-2.5 text-[9px] uppercase tracking-[0.3em] transition-all duration-300 ${
-                  sizeSlug === g.slug
-                    ? 'bg-white text-black'
-                    : 'border border-white/30 text-white/50 hover:border-white hover:text-white'
-                }`}
-              >
-                {g.label}
-              </Link>
-            ))}
-          </div>
+          {groups.length > 0 && (
+            <div className="flex gap-3 flex-wrap">
+              {groups.map((g) => (
+                <Link
+                  key={g.slug}
+                  to={`/tamanho/${g.slug}`}
+                  className={`px-6 py-2.5 text-[9px] uppercase tracking-[0.3em] transition-all duration-300 ${
+                    sizeSlug === g.slug
+                      ? 'bg-white text-black'
+                      : 'border border-white/30 text-white/50 hover:border-white hover:text-white'
+                  }`}
+                >
+                  {g.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -276,10 +309,9 @@ export function SizeListing() {
                           referrerPolicy="no-referrer"
                         />
                       </Link>
-                      {/* Real size badge from DB (translated) */}
                       {product.size && (
                         <span className="absolute top-3 left-3 bg-black/80 text-white text-[8px] uppercase tracking-widest px-2 py-1 font-medium">
-                          {parseProductSizes(product.size).join(', ') || product.size}
+                          {String(product.size)}
                         </span>
                       )}
                       <button

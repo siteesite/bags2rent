@@ -3,48 +3,34 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useCategories } from '../context/CategoriesContext';
 
 interface BrandData {
   brand: string;
+  slug: string;
   qty: number;
+  logo?: string;
 }
 
-// Map brand name → logo file (for brands that have one)
-const BRAND_LOGOS: Record<string, string> = {
-  'PatBo':            '/brands/patbo.png',
-  'patbo':            '/brands/patbo.png',
-  'Agilità':          '/brands/agilita.png',
-  'Agilitá':          '/brands/agilita.png',
-  'Animale':          '/brands/animale.png',
-  'Cris Barros':      '/brands/cris_barros.png',
-  'Cult Gaia':        '/brands/cult_gaia.png',
-  'Fabiana Milazzo':  '/brands/fabiana_milazzo.png',
-  'Ganni':            '/brands/ganni.png',
-  'ganni':            '/brands/ganni.png',
-  'Le Lis Blanc':     '/brands/le_lis_blanc.png',
-  'Ralph Lauren':     '/brands/ralph_lauren.png',
-  'Zimmermann':       '/brands/zimmermann.png',
-  'Saint Laurent':    '/brands/saint_laurent.png',
-  'Chanel':           '/brands/chanel.png',
-  'Prada':            '/brands/prada.png',
-  'Gucci':            '/brands/gucci.png',
-  'Dior':             '/brands/dior.png',
-  'Valentino':        '/brands/valentino.png',
-};
-
-// Brands to exclude (internal / test)
 const EXCLUDED_BRANDS = ['Clothing 2 rent', 'Bags2rent'];
 
-// Clean brand name for URL param
 function brandSlug(name: string) {
   return encodeURIComponent(name);
 }
 
 export function BrandsPage() {
-  const [brands, setBrands]   = useState<BrandData[]>([]);
+  const { byType, categories } = useCategories();
+  const [brands, setBrands] = useState<BrandData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter]   = useState('');
+  const [filter, setFilter] = useState('');
   const [hoveredBrand, setHoveredBrand] = useState<string | null>(null);
+
+  // Build logo map from category metadata
+  const brandCats = byType('marca').filter((c) => c.is_active);
+  const logoMap: Record<string, { slug: string; logo?: string; keywords: string[] }> = {};
+  for (const c of brandCats) {
+    logoMap[c.name] = { slug: c.slug, logo: c.metadata?.logo || c.image_url, keywords: c.keywords };
+  }
 
   useEffect(() => {
     async function fetchBrands() {
@@ -56,30 +42,35 @@ export function BrandsPage() {
         .neq('brand', '');
 
       if (!error && data) {
-        // Count per brand
         const countMap: Record<string, number> = {};
         data.forEach((row: { brand: string }) => {
           if (EXCLUDED_BRANDS.includes(row.brand)) return;
           countMap[row.brand] = (countMap[row.brand] ?? 0) + 1;
         });
         const sorted = Object.entries(countMap)
-          .map(([brand, qty]) => ({ brand, qty }))
+          .map(([brand, qty]) => {
+            const info = logoMap[brand];
+            return {
+              brand,
+              qty,
+              slug: info?.slug || createSlugLocal(brand),
+              logo: info?.logo,
+            };
+          })
           .sort((a, b) => b.qty - a.qty || a.brand.localeCompare(b.brand));
         setBrands(sorted);
       }
       setLoading(false);
     }
     fetchBrands();
-  }, []);
+  }, [categories]);
 
   const filtered = filter
     ? brands.filter((b) => b.brand.toLowerCase().includes(filter.toLowerCase()))
     : brands;
 
-  // Brands WITH logos (featured)
-  const featured = filtered.filter((b) => BRAND_LOGOS[b.brand]);
-  // Brands WITHOUT logos
-  const others   = filtered.filter((b) => !BRAND_LOGOS[b.brand]);
+  const featured = filtered.filter((b) => b.logo);
+  const others   = filtered.filter((b) => !b.logo);
 
   return (
     <div className="min-h-screen bg-white">
@@ -161,11 +152,13 @@ export function BrandsPage() {
                         onMouseLeave={() => setHoveredBrand(null)}
                         className="relative flex flex-col items-center justify-center bg-gray-50 hover:bg-black transition-all duration-500 group p-8 gap-3 aspect-square"
                       >
-                        <img
-                          src={BRAND_LOGOS[b.brand]}
-                          alt={b.brand}
-                          className="h-10 md:h-14 w-auto object-contain mix-blend-multiply group-hover:mix-blend-screen group-hover:invert transition-all duration-500"
-                        />
+                        {b.logo && (
+                          <img
+                            src={b.logo}
+                            alt={b.brand}
+                            className="h-10 md:h-14 w-auto object-contain mix-blend-multiply group-hover:mix-blend-screen group-hover:invert transition-all duration-500"
+                          />
+                        )}
                         <span className={`text-[8px] uppercase tracking-widest transition-colors duration-300 ${
                           hoveredBrand === b.brand ? 'text-white opacity-60' : 'text-gray-400'
                         }`}>
@@ -186,7 +179,6 @@ export function BrandsPage() {
                   <div className="flex-1 h-px bg-gray-100" />
                 </div>
 
-                {/* A–Z grouped */}
                 {(() => {
                   const allBrandsAlpha = [...featured, ...others].sort((a, b) =>
                     a.brand.localeCompare(b.brand)
@@ -211,9 +203,9 @@ export function BrandsPage() {
                             to={`/categoria?brand=${brandSlug(b.brand)}`}
                             className="group flex items-center justify-between px-4 py-3 border border-gray-100 hover:border-black hover:bg-black transition-all duration-300"
                           >
-                            {BRAND_LOGOS[b.brand] ? (
+                            {b.logo ? (
                               <img
-                                src={BRAND_LOGOS[b.brand]}
+                                src={b.logo}
                                 alt={b.brand}
                                 className="h-5 w-auto object-contain mix-blend-multiply group-hover:invert group-hover:mix-blend-screen transition-all duration-300"
                               />
@@ -268,4 +260,15 @@ export function BrandsPage() {
       </div>
     </div>
   );
+}
+
+function createSlugLocal(text: string) {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
 }

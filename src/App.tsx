@@ -26,10 +26,12 @@ import { EventCategory } from './pages/EventCategory';
 import { EventListing } from './pages/EventListing';
 import { BrandsPage } from './pages/BrandsPage';
 import { Checkout } from './pages/Checkout';
+import { CategoriesAdmin } from './pages/CategoriesAdmin';
 import { WishlistProvider } from './context/WishlistContext';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { CategoriesProvider } from './context/CategoriesContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import VersionCheck from './components/VersionCheck';
@@ -39,6 +41,7 @@ import { ContractPDF } from './pages/ContractPDF';
 export default function App() {
   return (
     <SettingsProvider>
+      <CategoriesProvider>
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
@@ -81,9 +84,10 @@ export default function App() {
             </Routes>
             <PWAInstallBanner />
         </BrowserRouter>
-      </WishlistProvider>
-      </CartProvider>
-    </AuthProvider>
+          </WishlistProvider>
+        </CartProvider>
+      </AuthProvider>
+      </CategoriesProvider>
     </SettingsProvider>
   );
 }

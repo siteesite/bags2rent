@@ -14,13 +14,34 @@ interface DbQuery {
 }
 
 async function call<T = any>(payload: Record<string, any>): Promise<{ data: T | null; error: any }> {
-  const { data, error } = await supabase.functions.invoke<{ success: boolean; data: T | null; error: any }>(
-    "admin-proxy",
-    { body: payload }
-  );
-  if (error) return { data: null, error };
-  if (data && (data as any).error) return { data: null, error: (data as any).error };
-  return { data: (data as any).data ?? null, error: null };
+  try {
+    const { data, error } = await supabase.functions.invoke<{ success: boolean; data: T | null; error: any }>(
+      "admin-proxy",
+      { body: payload }
+    );
+    if (error) {
+      // tenta extrair a mensagem de erro do corpo da resposta
+      let bodyMsg: string | undefined;
+      try {
+        // @ts-ignore
+        if (error.context && typeof error.context.json === 'function') {
+          const body = await error.context.json();
+          bodyMsg = body?.error || body?.message;
+        }
+      } catch {
+        // ignore
+      }
+      return { data: null, error: bodyMsg ? new Error(bodyMsg) : error };
+    }
+    // Resposta 2xx: o body pode trazer {success:false, error:'...'}
+    const bodyError = (data as any)?.error;
+    const bodySuccess = (data as any)?.success;
+    if (bodyError) return { data: null, error: new Error(bodyError) };
+    if (bodySuccess === false) return { data: null, error: new Error('Operação falhou') };
+    return { data: (data as any)?.data ?? null, error: null };
+  } catch (err: any) {
+    return { data: null, error: err };
+  }
 }
 
 function buildMatch(args: any[]): MatchEntry[] {
@@ -175,24 +196,19 @@ class AdminStorageBucket {
     return call({ action: "storage-remove", bucket: this.bucket, paths });
   }
   async upload(path: string, file: File | Blob) {
-    const signed = await this.createSignedUploadURL(path);
-    if (signed.error || !signed.data) {
-      return { data: null, error: signed.error ?? "Could not get signed URL" };
-    }
-    const { signedUrl, token } = signed.data;
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(signedUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
+    // Envia o arquivo como base64 no corpo da requisição para o proxy
+    // salvar via service_role (bypassa RLS de storage).
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    return call<{ path: string }>({
+      action: "storage-upload",
+      bucket: this.bucket,
+      path,
+      fileBase64: base64,
+      contentType: (file as any).type || 'application/octet-stream',
     });
-    if (!res.ok) {
-      const text = await res.text();
-      return { data: null, error: `Upload failed: ${text}` };
-    }
-    const data = await res.json();
-    return { data, error: null };
   }
   getPublicUrl(path: string) {
     const baseUrl = (supabase as any).storage?.url ?? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1`;
