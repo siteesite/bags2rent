@@ -7,6 +7,10 @@ import { useCategories } from '../context/CategoriesContext';
 import { clearCloudflareCache } from '../lib/cloudflare';
 import Papa from 'papaparse';
 
+const isSupportedProductImage = (file: File) =>
+  ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'].includes(file.type) ||
+  /\.(jpe?g|jpe|jfif|png|webp)$/i.test(file.name);
+
 const COLOR_MAP: { name: string; hex: string }[] = [
   { name: 'Amarelo',      hex: '#F5C542' },
   { name: 'Azul',        hex: '#2563EB' },
@@ -178,17 +182,14 @@ Critérios:
     if (!window.confirm('Tem certeza que deseja excluir permanentemente este produto?')) return;
     
     try {
-      console.log('Tentando excluir produto com ID:', id);
-      const { error } = await adminDb.from('products').delete().eq('id', id);
-      if (error) {
-        console.error('Supabase delete error:', error);
-        alert('Erro ao excluir: ' + error.message);
-      } else {
-        console.log('Produto excluído com sucesso');
-        setProducts(products.filter(p => p.id !== id));
-        // Clear Cloudflare cache
-        clearCloudflareCache();
+      const { data, error } = await adminDb.from('products').delete().eq('id', id);
+      if (error) throw error;
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('O produto não foi encontrado ou não pôde ser excluído.');
       }
+
+      setProducts(currentProducts => currentProducts.filter(product => product.id !== id));
+      clearCloudflareCache();
     } catch (err: any) {
       console.error('Exception no handleDelete:', err);
       alert('Erro inesperado ao excluir: ' + err.message);
@@ -962,10 +963,18 @@ Critérios:
                 </label>
                 <input 
                   type="file" 
-                  accept="image/png, image/jpeg, image/webp"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file && !isSupportedProductImage(file)) {
+                      alert('Formato inválido. Selecione uma imagem JPG, JPEG, JFIF, PNG ou WEBP.');
+                      e.target.value = '';
+                      return;
+                    }
+                    setImageFile(file);
+                  }}
                   className="w-full text-sm text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-colors"
                 />
+                <p className="text-xs text-on-surface-variant">Formatos aceitos: JPG, JPEG, JPE, JFIF, PNG e WEBP.</p>
                 
                 {(imageFile || manualProduct.image_url) && (
                   <div className="mt-4 flex flex-col items-center bg-surface-container rounded-lg p-4 transition-all hover:bg-surface-container-high border border-outline-variant/30">
@@ -1039,9 +1048,13 @@ Critérios:
                             <input 
                               type="file" 
                               className="hidden" 
-                              accept="image/*"
                               onChange={(e) => {
                                 const file = e.target.files?.[0] || null;
+                                if (file && !isSupportedProductImage(file)) {
+                                  alert('Formato inválido. Selecione uma imagem JPG, JPEG, JFIF, PNG ou WEBP.');
+                                  e.target.value = '';
+                                  return;
+                                }
                                 const newFiles = [...extraImageFiles];
                                 newFiles[index] = file;
                                 setExtraImageFiles(newFiles);
