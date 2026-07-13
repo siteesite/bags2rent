@@ -17,6 +17,7 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Account } from './pages/Account';
 import { Admin } from './pages/Admin';
+import { AdminLogin } from './pages/AdminLogin';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import { NotFound } from './pages/NotFound';
@@ -58,6 +59,7 @@ export default function App() {
                 <Route path="favoritos" element={<Wishlist />} />
                 <Route path="login" element={<Login />} />
                 <Route path="registrar" element={<Register />} />
+                <Route path="admin/login" element={<AdminLogin />} />
                 <Route path="recuperar-senha" element={<ForgotPassword />} />
                 <Route path="resetar-senha" element={<ResetPassword />} />
                 <Route path="politica-de-privacidade" element={<PrivacyPolicy />} />
@@ -68,15 +70,16 @@ export default function App() {
                 <Route path="evento/:eventSlug" element={<EventListing />} />
                 <Route path="marcas" element={<BrandsPage />} />
                 
+                <Route path="checkout" element={<Checkout />} />
+
                 {/* Protected Customer Routes */}
-                <Route element={<ProtectedRoute allowedRoles={['customer', 'admin']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['customer']} />}>
                   <Route path="minha-conta" element={<Account />} />
-                  <Route path="checkout" element={<Checkout />} />
                   <Route path="contrato/:id" element={<ContractPDF />} />
                 </Route>
 
                 {/* Protected Admin Routes */}
-                <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route element={<ProtectedRoute allowedRoles={['admin']} redirectTo="/admin/login" />}>
                   <Route path="admin" element={<Admin />} />
                 </Route>
               </Route>

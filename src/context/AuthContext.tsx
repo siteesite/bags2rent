@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mapSupabaseUserToProfile = (supabaseUser: SupabaseUser) => {
     const userMeta = supabaseUser.user_metadata || {};
     const appMeta = (supabaseUser as any).app_metadata || {};
-    const role: Role = appMeta.role === 'admin' || userMeta.role === 'admin' ? 'admin' : 'customer';
+    const role: Role = appMeta.role === 'admin' ? 'admin' : 'customer';
 
     setUser({
       id: supabaseUser.id,

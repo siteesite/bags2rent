@@ -6,6 +6,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Truck, CreditCard, MapPin, User as UserIcon, Loader2, CheckCircle2, Building2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { TermsModal } from '../components/TermsModal';
+import { CustomerAuthModal } from '../components/CustomerAuthModal';
 
 const STATE_TO_REGION: Record<string, string> = {
   'AC': 'shipping_north', 'AM': 'shipping_north', 'AP': 'shipping_north', 'PA': 'shipping_north', 'RO': 'shipping_north', 'RR': 'shipping_north', 'TO': 'shipping_north',
@@ -24,7 +25,7 @@ const REGION_LABELS: Record<string, string> = {
 };
 
 export function Checkout() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { items, subtotal, clearCart } = useCart();
   const navigate = useNavigate();
 
@@ -152,6 +153,18 @@ export function Checkout() {
     }
   }, [success]);
   
+  if (authLoading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   if (items.length === 0 && !success) {
     return <Navigate to="/" />;
   }
@@ -267,6 +280,7 @@ export function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user || user.role !== 'customer') return;
     setLoading(true);
 
     try {
@@ -537,7 +551,9 @@ export function Checkout() {
   }
 
   return (
-    <div className="bg-surface min-h-screen py-6 lg:py-24">
+    <>
+      <CustomerAuthModal isOpen={!user} onClose={() => navigate('/')} />
+      <div className="bg-surface min-h-screen py-6 lg:py-24" aria-hidden={!user}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-16">
           
@@ -1055,6 +1071,7 @@ export function Checkout() {
 
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

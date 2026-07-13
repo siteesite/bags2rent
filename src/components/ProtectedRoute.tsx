@@ -4,9 +4,10 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   allowedRoles: ('customer' | 'admin')[];
+  redirectTo?: string;
 }
 
-export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({ allowedRoles, redirectTo = '/login' }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -18,7 +19,7 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   if (!allowedRoles.includes(user.role)) {

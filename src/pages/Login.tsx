@@ -16,7 +16,7 @@ export function Login() {
     setLoading(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -25,9 +25,13 @@ export function Login() {
       setError(signInError.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : signInError.message);
       setLoading(false);
     } else {
-      const { data: userData } = await supabase.auth.getUser();
-      const appRole = (userData?.user as any)?.app_metadata?.role;
-      navigate(appRole === 'admin' ? '/admin' : '/minha-conta');
+      if (data.user?.app_metadata?.role === 'admin') {
+        await supabase.auth.signOut();
+        setError('Use o acesso administrativo para entrar com esta conta.');
+        setLoading(false);
+        return;
+      }
+      navigate('/minha-conta');
     }
   };
 
