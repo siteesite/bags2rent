@@ -28,9 +28,48 @@ interface HeroItem {
   handle?: string;
 }
 
+// Helper: monta style de object-position e zoom a partir de prefix+device nos settings
+function getImageStyle(settings: any, prefix: string, device: 'desktop' | 'tablet' | 'mobile') {
+  const px = Number(settings[`${prefix}_${device}_pos_x`] ?? 50);
+  const py = Number(settings[`${prefix}_${device}_pos_y`] ?? 50);
+  const zoom = Number(settings[`${prefix}_${device}_zoom`] ?? 1.0);
+  return {
+    objectPosition: `${px}% ${py}%`,
+    transform: `scale(${zoom})`,
+    transformOrigin: `${px}% ${py}%`,
+  } as import('react').CSSProperties;
+}
+
+// Hook: detecta o device atual (desktop/tablet/mobile) via matchMedia
+function useResponsiveDevice(): 'desktop' | 'tablet' | 'mobile' {
+  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>(() => {
+    if (typeof window === 'undefined') return 'desktop';
+    if (window.matchMedia('(max-width: 767px)').matches) return 'mobile';
+    if (window.matchMedia('(max-width: 1024px)').matches) return 'tablet';
+    return 'desktop';
+  });
+  useEffect(() => {
+    const update = () => {
+      if (window.matchMedia('(max-width: 767px)').matches) setDevice('mobile');
+      else if (window.matchMedia('(max-width: 1024px)').matches) setDevice('tablet');
+      else setDevice('desktop');
+    };
+    const mqMobile = window.matchMedia('(max-width: 767px)');
+    const mqTablet = window.matchMedia('(max-width: 1024px)');
+    mqMobile.addEventListener('change', update);
+    mqTablet.addEventListener('change', update);
+    return () => {
+      mqMobile.removeEventListener('change', update);
+      mqTablet.removeEventListener('change', update);
+    };
+  }, []);
+  return device;
+}
+
 export function Home() {
   const { settings, loading: settingsLoading } = useSiteSettings();
   const { byType } = useCategories();
+  const device = useResponsiveDevice();
   const [loading, setLoading] = useState(true);
   const [heroProducts, setHeroProducts] = useState<(HeroItem | null)[]>([null, null, null]);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -140,7 +179,7 @@ export function Home() {
     <div className="flex flex-col bg-white">
 
       {/* ===== MOBILE: Slider automático ===== */}
-      <section className="relative h-screen overflow-hidden md:hidden">
+      <section className="relative overflow-hidden md:hidden w-full" style={{ aspectRatio: '3 / 4', maxHeight: '90vh' }}>
         <AnimatePresence mode="wait">
           {heroSlides.map((slide, index) =>
             index === activeSlide ? (
@@ -165,7 +204,10 @@ export function Home() {
                           src={slide.image_url}
                           alt={slide.name || 'Banner'}
                           className="w-full h-full object-cover"
-                          style={(index !== 1 && slide.type !== 'image') ? { filter: 'grayscale(100%)' } : undefined}
+                          style={{
+                            ...getImageStyle(settings, `hero_${index + 1}`, device),
+                            ...((index !== 1 && slide.type !== 'image') ? { filter: 'grayscale(100%)' } : {})
+                          }}
                         />
                       </picture>
                     <div className={`absolute inset-0 ${index === 1 ? 'bg-black/30' : 'bg-black/10'}`} />
@@ -230,7 +272,7 @@ export function Home() {
       </section>
 
       {/* ===== DESKTOP: 3 Painéis lado a lado ===== */}
-      <section className="relative h-screen hidden md:grid grid-cols-3 gap-0 overflow-hidden">
+      <section className="relative hidden md:grid grid-cols-3 gap-0 overflow-hidden w-full" style={{ aspectRatio: '12 / 5', maxHeight: '85vh' }}>
 
         {heroProducts[0] ? (
           <Link
@@ -242,6 +284,7 @@ export function Home() {
               <img
                 src={heroProducts[0].image_url}
                 alt={heroProducts[0].name || 'Banner'}
+                style={getImageStyle(settings, 'hero_1', device === 'mobile' ? 'mobile' : (device === 'tablet' ? 'tablet' : 'desktop'))}
                 className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${heroProducts[0].type !== 'image' ? 'grayscale group-hover:grayscale-0' : ''}`}
               />
             </picture>
@@ -276,6 +319,7 @@ export function Home() {
               <img
                 src={heroProducts[1].image_url}
                 alt={heroProducts[1].name || 'Banner'}
+                style={getImageStyle(settings, 'hero_2', device === 'mobile' ? 'mobile' : (device === 'tablet' ? 'tablet' : 'desktop'))}
                 className="w-full h-full object-cover"
               />
             </picture>
@@ -342,6 +386,7 @@ export function Home() {
               <img
                 src={heroProducts[2].image_url}
                 alt={heroProducts[2].name || 'Banner'}
+                style={getImageStyle(settings, 'hero_3', device === 'mobile' ? 'mobile' : (device === 'tablet' ? 'tablet' : 'desktop'))}
                 className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-105 ${heroProducts[2].type !== 'image' ? 'grayscale group-hover:grayscale-0' : ''}`}
               />
             </picture>
@@ -394,7 +439,8 @@ export function Home() {
           <img
             src={settings.banner_news_mobile || settings.banner_news_desktop || "/banners/news_for_rent.png"}
             alt="News for Rent"
-            className="absolute inset-0 w-full h-full object-cover object-top md:object-[50%_-200px]"
+            style={getImageStyle(settings, 'banner_news', device)}
+            className="absolute inset-0 w-full h-full object-cover"
           />
         </picture>
         <div className="absolute inset-0 bg-black/10"></div>
@@ -458,6 +504,7 @@ export function Home() {
             <img
               src={settings.banner_noivas_mobile || settings.banner_noivas_desktop || "/banners/noivas.png"}
               alt="Bolsas em Destaque"
+              style={getImageStyle(settings, 'banner_noivas', device)}
               className="absolute inset-0 w-full h-full object-cover"
             />
           </picture>
@@ -527,6 +574,7 @@ export function Home() {
             <img
               src={settings.banner_alugue_mobile || settings.banner_alugue_desktop || "/banners/alugue_agora.png"}
               alt="Editorial Alugue Agora"
+              style={getImageStyle(settings, 'banner_alugue', device)}
               className="absolute inset-0 w-full h-full object-cover"
             />
           </picture>

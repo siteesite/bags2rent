@@ -133,9 +133,91 @@ interface Settings {
   menu_eventos_visible?: boolean;
   menu_marcas_visible?: boolean;
   menu_hidden_items?: string[];
+  // Posição e zoom das imagens (todas opcionais — DB preenche defaults)
+  [key: string]: any;
 }
 
 const DEFAULT_ID = '00000000-0000-0000-0000-000000000000';
+
+interface ImagePositionControlsProps {
+  settings: any;
+  setSettings: any;
+  prefix: string; // ex: 'hero_1', 'banner_news', 'banner_noivas', 'banner_alugue'
+  device: 'desktop' | 'tablet' | 'mobile';
+}
+
+function ImagePositionControls({ settings, setSettings, prefix, device }: ImagePositionControlsProps) {
+  const pxKey = `${prefix}_${device}_pos_x`;
+  const pyKey = `${prefix}_${device}_pos_y`;
+  const zoomKey = `${prefix}_${device}_zoom`;
+  const px = Number(settings[pxKey] ?? 50);
+  const py = Number(settings[pyKey] ?? 50);
+  const zoom = Number(settings[zoomKey] ?? 1.0);
+
+  const setVal = (key: string, value: number) => {
+    setSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-outline-variant/10 space-y-2">
+      <p className="text-[9px] uppercase font-bold tracking-widest text-on-surface-variant/60">Posição & Zoom</p>
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] uppercase text-on-surface-variant/70 w-6">X</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={px}
+            onChange={(e) => setVal(pxKey, Number(e.target.value))}
+            className="flex-1 accent-primary h-1.5 cursor-pointer"
+          />
+          <span className="text-[10px] font-mono w-7 text-right text-on-surface-variant">{px}%</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] uppercase text-on-surface-variant/70 w-6">Y</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={py}
+            onChange={(e) => setVal(pyKey, Number(e.target.value))}
+            className="flex-1 accent-primary h-1.5 cursor-pointer"
+          />
+          <span className="text-[10px] font-mono w-7 text-right text-on-surface-variant">{py}%</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] uppercase text-on-surface-variant/70 w-6">🔍</span>
+          <input
+            type="range"
+            min={1.0}
+            max={3.0}
+            step={0.05}
+            value={zoom}
+            onChange={(e) => setVal(zoomKey, Number(e.target.value))}
+            className="flex-1 accent-primary h-1.5 cursor-pointer"
+          />
+          <span className="text-[10px] font-mono w-7 text-right text-on-surface-variant">{zoom.toFixed(2)}x</span>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              setVal(pxKey, 50);
+              setVal(pyKey, 50);
+              setVal(zoomKey, 1.0);
+            }}
+            className="text-[9px] uppercase tracking-widest font-bold text-on-surface-variant/70 hover:text-primary transition-colors"
+          >
+            ↺ Centralizar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MenuTab() {
   const { types, categories, byType } = useCategories();
@@ -547,10 +629,14 @@ export function SettingsAdmin() {
   }, []);
 
   const fetchAllProducts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .select('id, name, brand, price, image_url, handle')
       .order('name', { ascending: true });
+    if (error) {
+      console.error('Erro ao buscar lista de produtos:', error);
+      setMessage({ type: 'error', text: 'Erro ao carregar lista de produtos: ' + error.message });
+    }
     setAllProducts(data || []);
   };
 
@@ -900,7 +986,7 @@ export function SettingsAdmin() {
                                 setSettings({ ...settings, hero_products: updated });
                               }}
                               className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all ${
-                                (product?.type || 'product') === 'product'
+                                product?.type === 'product' || !product?.type
                                   ? 'bg-primary text-white border-primary'
                                   : 'bg-surface-container-low text-on-surface-variant border-outline-variant hover:bg-surface-container-high'
                               }`}
@@ -972,14 +1058,15 @@ export function SettingsAdmin() {
                           ) : (
                             <div className="space-y-4">
                                {[
-                                 { dKey: 'desktop' as const, lbl: 'Desktop', current: product?.image_url },
-                                 { dKey: 'tablet' as const, lbl: 'Tablet', current: product?.image_url_tablet },
-                                 { dKey: 'mobile' as const, lbl: 'Mobile', current: product?.image_url_mobile }
+                                 { dKey: 'desktop' as const, lbl: 'Desktop', size: '1920 × 800 px', current: product?.image_url },
+                                 { dKey: 'tablet' as const, lbl: 'Tablet', size: '1024 × 600 px', current: product?.image_url_tablet },
+                                 { dKey: 'mobile' as const, lbl: 'Mobile', size: '768 × 1024 px', current: product?.image_url_mobile }
                                ].map((dev) => (
                                  <div key={dev.dKey} className="space-y-1.5">
-                                   <div className="flex items-center justify-between">
+                                   <div className="flex items-center justify-between gap-1">
                                      <label className="text-[10px] uppercase font-bold text-on-surface-variant/60 flex items-center gap-1.5">
                                        {dev.lbl}
+                                       <span className="text-[9px] font-mono font-normal text-on-surface-variant/50 normal-case tracking-normal">{dev.size}</span>
                                        {dev.current && (
                                          <span className="inline-flex items-center gap-0.5 text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider">
                                            <CheckCircle2 className="w-2.5 h-2.5" /> OK
@@ -1019,35 +1106,45 @@ export function SettingsAdmin() {
                                      </div>
                                    )}
 
-                                   {/* Upload button — always visible below preview */}
-                                   <div>
-                                     <input
-                                       type="file"
-                                       accept="image/*"
-                                       className="hidden"
-                                       id={`upload-hero-${slot}-${dev.dKey}`}
-                                       disabled={uploadingSlots[`${slot}_${dev.dKey}`]}
-                                       onChange={(e) => handleHeroFileUpload(slot, dev.dKey, e)}
-                                     />
-                                     <label
-                                       htmlFor={`upload-hero-${slot}-${dev.dKey}`}
-                                       className={`flex items-center justify-center gap-2 w-full py-2 text-[10px] uppercase font-bold tracking-widest cursor-pointer border transition-all ${
-                                         uploadingSlots[`${slot}_${dev.dKey}`]
-                                           ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                           : dev.current
-                                             ? 'bg-white text-black border-outline-variant hover:bg-surface-container-low'
-                                             : 'bg-primary text-white border-primary hover:bg-primary/90'
-                                       }`}
-                                     >
-                                       {uploadingSlots[`${slot}_${dev.dKey}`] ? (
-                                         <><Loader2 className="w-3 h-3 animate-spin" /> Enviando...</>
-                                       ) : dev.current ? (
-                                         <><Upload className="w-3 h-3" /> Trocar imagem</>
-                                       ) : (
-                                         <><Upload className="w-3 h-3" /> Upload</>
-                                       )}
-                                     </label>
-                                   </div>
+{/* Upload button — always visible below preview */}
+                                    <div>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        id={`upload-hero-${slot}-${dev.dKey}`}
+                                        disabled={uploadingSlots[`${slot}_${dev.dKey}`]}
+                                        onChange={(e) => handleHeroFileUpload(slot, dev.dKey, e)}
+                                      />
+                                      <label
+                                        htmlFor={`upload-hero-${slot}-${dev.dKey}`}
+                                        className={`flex items-center justify-center gap-2 w-full py-2 text-[10px] uppercase font-bold tracking-widest cursor-pointer border transition-all ${
+                                          uploadingSlots[`${slot}_${dev.dKey}`]
+                                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                            : dev.current
+                                              ? 'bg-white text-black border-outline-variant hover:bg-surface-container-low'
+                                              : 'bg-primary text-white border-primary hover:bg-primary/90'
+                                        }`}
+                                      >
+                                        {uploadingSlots[`${slot}_${dev.dKey}`] ? (
+                                          <><Loader2 className="w-3 h-3 animate-spin" /> Enviando...</>
+                                        ) : dev.current ? (
+                                          <><Upload className="w-3 h-3" /> Trocar imagem</>
+                                        ) : (
+                                          <><Upload className="w-3 h-3" /> Upload</>
+                                        )}
+                                      </label>
+                                    </div>
+
+                                    {/* Controles de posição e zoom */}
+                                    {dev.current && (
+                                      <ImagePositionControls
+                                        settings={settings}
+                                        setSettings={setSettings}
+                                        prefix={`hero_${slot + 1}`}
+                                        device={dev.dKey}
+                                      />
+                                    )}
                                  </div>
                                ))}
                             </div>
@@ -1432,15 +1529,18 @@ export function SettingsAdmin() {
                             {/* Imagens */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                {[
-                                 { dKey: 'desktop', lbl: 'Desktop' },
-                                 { dKey: 'tablet', lbl: 'Tablet' },
-                                 { dKey: 'mobile', lbl: 'Mobile' }
+                                 { dKey: 'desktop', lbl: 'Desktop', size: '1920 × 600 px' },
+                                 { dKey: 'tablet', lbl: 'Tablet', size: '1024 × 500 px' },
+                                 { dKey: 'mobile', lbl: 'Mobile', size: '768 × 600 px' }
                                ].map((dev) => {
                                  const fKey = `${bConf.keyPrefix}_${dev.dKey}`;
                                  const cVal = (settings as any)[fKey] as string || '';
                                  return (
                                    <div key={fKey} className="space-y-2">
-                                     <label className="text-[10px] uppercase font-bold text-on-surface-variant/60">{dev.lbl}</label>
+                                     <div className="flex items-baseline justify-between gap-1">
+                                       <label className="text-[10px] uppercase font-bold text-on-surface-variant/60">{dev.lbl}</label>
+                                       <span className="text-[9px] font-mono text-on-surface-variant/50">{dev.size}</span>
+                                     </div>
                                      <div className="relative group border border-outline-variant/20 rounded overflow-hidden aspect-video bg-surface-container flex items-center justify-center">
                                         {cVal ? (
                                           <img src={cVal} className="object-cover w-full h-full" alt="Preview"/>
@@ -1474,14 +1574,24 @@ export function SettingsAdmin() {
                                            <label htmlFor={`upload-${fKey}`} className="p-2 cursor-pointer bg-white text-black rounded-full hover:bg-gray-200 shadow-sm transition-transform active:scale-95">
                                               <Upload className="w-4 h-4"/>
                                            </label>
-                                           {cVal && (
-                                             <button type="button" onClick={() => setSettings({...settings, [fKey]: ''})} className="p-2 bg-white text-red-500 rounded-full hover:bg-red-50 transition-transform active:scale-95">
+{cVal && (
+                                              <button type="button" onClick={() => setSettings({...settings, [fKey]: ''})} className="p-2 bg-white text-red-500 rounded-full hover:bg-red-50 transition-transform active:scale-95">
                                                 <X className="w-4 h-4"/>
-                                             </button>
-                                           )}
-                                        </div>
-                                     </div>
-                                   </div>
+                                              </button>
+                                            )}
+                                         </div>
+                                      </div>
+
+                                      {/* Controles de posição e zoom */}
+                                      {cVal && (
+                                        <ImagePositionControls
+                                          settings={settings}
+                                          setSettings={setSettings}
+                                          prefix={bConf.keyPrefix}
+                                          device={dev.dKey as 'desktop' | 'tablet' | 'mobile'}
+                                        />
+                                      )}
+                                    </div>
                                  );
                                })}
                             </div>
