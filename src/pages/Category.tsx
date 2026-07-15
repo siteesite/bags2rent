@@ -36,7 +36,8 @@ export function Category() {
   const searchParams = new URLSearchParams(location.search);
   const brand = searchParams.get('brand');
 
-  const pecaCats = byType('peca').filter((c) => c.is_active);
+  const pecaCats = useMemo(() => byType('peca').filter((c) => c.is_active), [byType]);
+  const marcaCats = useMemo(() => byType('marca').filter((c) => c.is_active), [byType]);
 
   const categoryInfo = useMemo(() => {
     if (categorySlug === 'new-in' || !categorySlug) {
@@ -52,7 +53,19 @@ export function Category() {
     };
   }, [categorySlug, pecaCats]);
 
-  const categoryTitle = brand ? `Produtos: ${brand}` : categoryInfo.title;
+  const brandInfo = useMemo(() => {
+    if (!brand) return null;
+    const decoded = decodeURIComponent(brand);
+    const found = marcaCats.find(
+      (c) => c.slug === decoded || c.slug === brand || c.name === decoded || c.name === brand
+    );
+    return {
+      label: found?.name || decoded,
+      matches: found?.keywords?.length ? found.keywords : found ? [found.name] : [decoded, brand],
+    };
+  }, [brand, marcaCats]);
+
+  const categoryTitle = brandInfo ? `Produtos: ${brandInfo.label}` : categoryInfo.title;
 
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +99,8 @@ export function Category() {
   }, [categoryTitle, sort, availability, priceRange]);
 
   useEffect(() => {
+    const brandMatches = brandInfo?.matches ?? [];
+
     async function fetchProducts() {
       setLoading(true);
       let query = supabase.from('products').select('*', { count: 'exact' }).eq('status', 'active');
@@ -94,8 +109,8 @@ export function Category() {
         query = query.in('category', categoryInfo.matches);
       }
 
-      if (brand) {
-        query = query.eq('brand', brand);
+      if (brandMatches.length > 0) {
+        query = query.in('brand', brandMatches);
       }
 
       if (availability === 'in_stock') {
@@ -128,7 +143,7 @@ export function Category() {
     }
 
     fetchProducts();
-  }, [categoryTitle, currentPage, brand, sort, availability, priceRange]);
+  }, [categoryTitle, categoryInfo, currentPage, brand, brandInfo, sort, availability, priceRange]);
 
   const sortLabel = SORT_OPTIONS.find(o => o.value === sort)?.label || 'Mais Recentes';
   const availabilityLabel = AVAILABILITY_OPTIONS.find(o => o.value === availability)?.label || 'Todos';
