@@ -510,6 +510,7 @@ export function SettingsAdmin() {
     menu_eventos_visible: true,
     menu_marcas_visible: true,
     menu_hidden_items: [],
+    asaas_environment: 'sandbox',
   });
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState('');
@@ -2205,6 +2206,62 @@ export function SettingsAdmin() {
                 </div>
 
                 <div className="space-y-8">
+                  {/* Seletor de Ambiente */}
+                  <div className="space-y-4 p-6 bg-surface-container-low border border-outline-variant/10">
+                    <div className="flex items-center gap-2">
+                      <Info className="w-4 h-4 text-primary" />
+                      <h5 className="text-xs font-bold uppercase tracking-widest">Ambiente do Asaas</h5>
+                    </div>
+                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                      Defina se o checkout deve processar pagamentos em <strong>Sandbox</strong> (testes, sem cobrança real) ou <strong>Produção</strong> (ambiente real). A configuração é salva no banco e aplicada em todos os pagamentos.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSettings(prev => ({ ...prev, asaas_environment: 'sandbox' }))}
+                        className={`p-4 border-2 transition-all text-left ${
+                          (settings as any).asaas_environment !== 'production'
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/30'
+                            : 'border-outline-variant/30 bg-white hover:border-outline-variant/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sandbox</span>
+                          {(settings as any).asaas_environment !== 'production' && (
+                            <CheckCircle2 className="w-4 h-4 text-primary" />
+                          )}
+                        </div>
+                        <p className="text-xs text-on-surface-variant/80 leading-relaxed">
+                          Testes. Use CPF <code className="bg-black/5 px-1 font-mono">048.415.015-52</code> e cartão <code className="bg-black/5 px-1 font-mono">4111 1111 1111 1111</code>. Nenhuma cobrança real.
+                        </p>
+                        <p className="text-[9px] font-mono text-on-surface-variant/60 mt-2 truncate">sandbox.asaas.com/api/v3</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSettings(prev => ({ ...prev, asaas_environment: 'production' }))}
+                        className={`p-4 border-2 transition-all text-left ${
+                          (settings as any).asaas_environment === 'production'
+                            ? 'border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/30'
+                            : 'border-outline-variant/30 bg-white hover:border-outline-variant/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Produção</span>
+                          {(settings as any).asaas_environment === 'production' && (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          )}
+                        </div>
+                        <p className="text-xs text-on-surface-variant/80 leading-relaxed">
+                          Ambiente real. Cobranças válidas no cartão/PIX dos clientes. Use com cuidado.
+                        </p>
+                        <p className="text-[9px] font-mono text-on-surface-variant/60 mt-2 truncate">api.asaas.com/v3</p>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-on-surface-variant italic">
+                      Lembre-se de clicar em <strong>Salvar Configurações</strong> abaixo para persistir a alteração.
+                    </p>
+                  </div>
+
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
@@ -2212,15 +2269,15 @@ export function SettingsAdmin() {
                       </label>
                       <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded">Ativo</span>
                     </div>
-                    
+
                     <div className="flex gap-2">
-                       <input 
-                        type="text" 
+                       <input
+                        type="text"
                         readOnly
                         value="https://uggofsioqvqcnpwmnznp.supabase.co/functions/v1/asaas-webhook"
                         className="flex-1 bg-surface-container-low border border-outline-variant px-4 py-3 text-sm font-mono text-on-surface-variant focus:outline-none"
                       />
-                      <button 
+                      <button
                         type="button"
                         onClick={() => {
                           navigator.clipboard.writeText("https://uggofsioqvqcnpwmnznp.supabase.co/functions/v1/asaas-webhook");
@@ -2239,22 +2296,32 @@ export function SettingsAdmin() {
                   <div className="p-6 bg-surface-container-low border border-outline-variant/10 space-y-4">
                     <div className="flex items-center gap-2">
                       <Info className="w-4 h-4 text-primary" />
-                      <h5 className="text-xs font-bold uppercase tracking-widest">Configuração Necessária</h5>
+                      <h5 className="text-xs font-bold uppercase tracking-widest">Configuração Necessária (Secrets do Supabase)</h5>
                     </div>
-                    <div className="space-y-3">
-                      <p className="text-xs text-on-surface-variant leading-relaxed">
-                        Para que o processamento funcione, você deve configurar a <strong>API Key</strong> no seu ambiente Supabase:
-                      </p>
-                      <div className="bg-black text-white p-4 font-mono text-[10px] leading-relaxed rounded overflow-x-auto">
-                        supabase secrets set ASAAS_API_KEY=sua_chave_aqui
+                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                      Configure <strong>uma chave para cada ambiente</strong>. A função <code className="bg-black/5 px-1 font-mono">process-payment</code> seleciona automaticamente qual usar conforme o ambiente ativo acima.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sandbox</p>
+                        <div className="bg-black text-white p-3 font-mono text-[10px] leading-relaxed rounded overflow-x-auto space-y-1">
+                          <div>supabase secrets set ASAAS_API_KEY_SANDBOX=&lt;chave_sandbox&gt;</div>
+                          <div>supabase secrets set ASAAS_API_URL_SANDBOX=https://sandbox.asaas.com/api/v3</div>
+                          <div>supabase secrets set ASAAS_WEBHOOK_TOKEN_SANDBOX=&lt;token_sandbox&gt;</div>
+                        </div>
                       </div>
-                      <p className="text-xs text-on-surface-variant leading-relaxed">
-                        Também configure o Token do Webhook para segurança:
-                      </p>
-                      <div className="bg-black text-white p-4 font-mono text-[10px] leading-relaxed rounded overflow-x-auto">
-                        supabase secrets set ASAAS_WEBHOOK_TOKEN=seu_token_aqui
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Produção</p>
+                        <div className="bg-black text-white p-3 font-mono text-[10px] leading-relaxed rounded overflow-x-auto space-y-1">
+                          <div>supabase secrets set ASAAS_API_KEY_PRODUCTION=&lt;chave_producao&gt;</div>
+                          <div>supabase secrets set ASAAS_API_URL_PRODUCTION=https://api.asaas.com/v3</div>
+                          <div>supabase secrets set ASAAS_WEBHOOK_TOKEN_PRODUCTION=&lt;token_producao&gt;</div>
+                        </div>
                       </div>
                     </div>
+                    <p className="text-[10px] text-on-surface-variant italic leading-relaxed">
+                      As variáveis legadas <code className="bg-black/5 px-1 font-mono">ASAAS_API_KEY</code>, <code className="bg-black/5 px-1 font-mono">ASAAS_API_URL</code> e <code className="bg-black/5 px-1 font-mono">ASAAS_WEBHOOK_TOKEN</code> ainda são reconhecidas como <strong>fallback</strong> caso as específicas por ambiente não estejam definidas.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
@@ -2267,6 +2334,16 @@ export function SettingsAdmin() {
                         <li>PAYMENT_CONFIRMED (Cartão aprovado)</li>
                         <li>PAYMENT_OVERDUE (Vencido)</li>
                         <li>PAYMENT_REFUNDED (Estornado)</li>
+                      </ul>
+                    </div>
+                    <div className="border border-outline-variant/10 p-4 rounded bg-surface-container-lowest/50">
+                      <h6 className="text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <Info className="w-3 h-3 text-primary" /> Cartões de Teste (Sandbox)
+                      </h6>
+                      <ul className="text-[10px] text-on-surface-variant space-y-1 ml-4 list-disc">
+                        <li>Visa: <code className="font-mono">4111 1111 1111 1111</code></li>
+                        <li>Master: <code className="font-mono">5111 1111 1111 1111</code></li>
+                        <li>CVV: qualquer 3 dígitos · Validade: futura</li>
                       </ul>
                     </div>
                   </div>

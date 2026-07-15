@@ -6,17 +6,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Production Asaas API - chave e URL vêm dos Secrets do Supabase
-const ASAAS_API_KEY = (Deno.env.get("ASAAS_API_KEY") || "").replace(/^["']|["']$/g, "").trim();
-const ASAAS_API_URL = (Deno.env.get("ASAAS_API_URL") || "https://api.asaas.com/v3").replace(/^["']|["']$/g, "").trim();
+type AsaasEnv = "sandbox" | "production";
+
+// Lê e normaliza uma variável de ambiente (remove aspas / espaços acidentais)
+function envStr(name: string, fallback = ""): string {
+  return (Deno.env.get(name) || fallback).replace(/^["']|["']$/g, "").trim();
+}
+
+// Resolve a chave, URL e webhook token de acordo com o ambiente
+function getAsaasConfig(env: AsaasEnv) {
+  if (env === "production") {
+    return {
+      apiKey: envStr("ASAAS_API_KEY_PRODUCTION") || envStr("ASAAS_API_KEY"),
+      apiUrl: envStr("ASAAS_API_URL_PRODUCTION", "https://api.asaas.com/v3"),
+      webhookToken: envStr("ASAAS_WEBHOOK_TOKEN_PRODUCTION") || envStr("ASAAS_WEBHOOK_TOKEN"),
+    };
+  }
+  return {
+    apiKey: envStr("ASAAS_API_KEY_SANDBOX") || envStr("ASAAS_API_KEY"),
+    apiUrl: envStr("ASAAS_API_URL_SANDBOX", "https://sandbox.asaas.com/api/v3"),
+    webhookToken: envStr("ASAAS_WEBHOOK_TOKEN_SANDBOX") || envStr("ASAAS_WEBHOOK_TOKEN"),
+  };
+}
+
+// Lê o ambiente Asaas configurado no settings (single source of truth)
+async function readAsaasEnvironmentFromSettings(
+  supabaseClient: ReturnType<typeof createClient>
+): Promise<AsaasEnv> {
+  try {
+    const { data } = await supabaseClient
+      .from("settings")
+      .select("asaas_environment")
+      .eq("id", "00000000-0000-0000-0000-000000000000")
+      .single();
+    const env = data?.asaas_environment;
+    return env === "production" ? "production" : "sandbox";
+  } catch {
+    return "sandbox";
+  }
+}
 
 serve(async (req: Request) => {
   const url = new URL(req.url);
-  console.log(`[payment] Asaas Request: ${req.method} ${url.pathname}`);
-  console.log(`[payment] API URL: ${ASAAS_API_URL}`);
-  console.log(`[payment] API Key prefix: ${ASAAS_API_KEY.substring(0, 15)}...`);
-  
-  // Handle CORS
+  console.log(`[payment] Request: ${req.method} ${url.pathname}`);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -30,6 +63,25 @@ serve(async (req: Request) => {
     const body = await req.json();
     const { order_name, customer, address, items, amount, payment } = body;
 
+    // 1) Define o ambiente: preferência vem do body, fallback do settings
+    const requestedEnv: AsaasEnv =
+      payment?.environment === "production" || payment?.environment === "sandbox"
+        ? payment.environment
+        : await readAsaasEnvironmentFromSettings(supabaseClient);
+
+    const cfg = getAsaasConfig(requestedEnv);
+
+    console.log(`[payment] Environment: ${requestedEnv}`);
+    console.log(`[payment] API URL: ${cfg.apiUrl}`);
+    console.log(`[payment] API Key prefix: ${cfg.apiKey ? cfg.apiKey.substring(0, 12) + "..." : "(MISSING)"}`);
+
+    if (!cfg.apiKey) {
+      throw new Error(
+        `Chave da API Asaas não configurada para o ambiente "${requestedEnv}". ` +
+        `Defina ASAAS_API_KEY_${requestedEnv.toUpperCase()} nos secrets do Supabase.`
+      );
+    }
+
     console.log("[payment] Method:", payment?.payment_method);
 
     // Validate basics
@@ -42,11 +94,11 @@ serve(async (req: Request) => {
 
     // --- STEP 1: Find or Create Customer in Asaas ---
     console.log(`[payment] Searching for customer with CPF: ${cpfClean}`);
-    const customerSearchRes = await fetch(`${ASAAS_API_URL}/customers?cpfCnpj=${cpfClean}`, {
-      headers: { "access_token": ASAAS_API_KEY }
+    const customerSearchRes = await fetch(`${cfg.apiUrl}/customers?cpfCnpj=${cpfClean}`, {
+      headers: { "access_token": cfg.apiKey }
     });
     const customerSearchResult = await customerSearchRes.json();
-    
+
     let asaasCustomerId = "";
 
     if (customerSearchResult.data && customerSearchResult.data.length > 0) {
@@ -54,11 +106,11 @@ serve(async (req: Request) => {
       console.log(`[payment] Existing customer found: ${asaasCustomerId}`);
     } else {
       console.log("[payment] Creating new customer in Asaas...");
-      const customerCreateRes = await fetch(`${ASAAS_API_URL}/customers`, {
+      const customerCreateRes = await fetch(`${cfg.apiUrl}/customers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "access_token": ASAAS_API_KEY
+          "access_token": cfg.apiKey
         },
         body: JSON.stringify({
           name: customer.name,
@@ -69,11 +121,11 @@ serve(async (req: Request) => {
         })
       });
       const customerCreateResult = await customerCreateRes.json();
-      
+
       if (!customerCreateRes.ok) {
         throw new Error(`Erro ao criar cliente no Asaas: ${customerCreateResult.errors?.[0]?.description || "Erro desconhecido"}`);
       }
-      
+
       asaasCustomerId = customerCreateResult.id;
       console.log(`[payment] New customer created: ${asaasCustomerId}`);
     }
@@ -83,7 +135,7 @@ serve(async (req: Request) => {
       customer: asaasCustomerId,
       billingType: payment.payment_method === "credit_card" ? "CREDIT_CARD" : "PIX",
       value: amount,
-      dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // 1 day from now
+      dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
       description: `Pedido ${order_name}`,
       externalReference: order_name,
     };
@@ -95,7 +147,7 @@ serve(async (req: Request) => {
       }
 
       console.log(`[payment] Preparing credit card payload for ${payment.card.holder_name}`);
-      
+
       asaasPayload.creditCard = {
         holderName: payment.card.holder_name,
         number: payment.card.number,
@@ -112,30 +164,24 @@ serve(async (req: Request) => {
         phone: phoneClean,
         remoteIp: payment.remoteIp || "127.0.0.1"
       };
-      // Installments
       if (payment.installments > 1) {
         asaasPayload.installmentCount = payment.installments;
-        asaasPayload.totalValue = amount; // Asaas handles splitting the total
+        asaasPayload.totalValue = amount;
         delete asaasPayload.value;
       }
     }
 
-    // Explicitly add items with truncation to avoid the 52-character limit error
     if (items && items.length > 0) {
-      // Asaas API v3 uses 'description' instead of 'name' for line items
-      // and 'code' has a 52 char limit.
-      // Note: We only send items if it's a single payment (no installments) 
-      // or if we want to provide detailed breakdown.
       asaasPayload.description = items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ").substring(0, 255);
     }
 
     console.log("[payment] Creating payment with payload:", JSON.stringify({ ...asaasPayload, creditCard: "MASKED" }, null, 2));
-    
-    const paymentRes = await fetch(`${ASAAS_API_URL}/payments`, {
+
+    const paymentRes = await fetch(`${cfg.apiUrl}/payments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "access_token": ASAAS_API_KEY
+        "access_token": cfg.apiKey
       },
       body: JSON.stringify(asaasPayload)
     });
@@ -151,8 +197,8 @@ serve(async (req: Request) => {
     let pixData = null;
     if (payment.payment_method === "pix") {
       console.log(`[payment] Fetching PIX QR Code for payment ${asaasResult.id}`);
-      const pixRes = await fetch(`${ASAAS_API_URL}/payments/${asaasResult.id}/pixQrCode`, {
-        headers: { "access_token": ASAAS_API_KEY }
+      const pixRes = await fetch(`${cfg.apiUrl}/payments/${asaasResult.id}/pixQrCode`, {
+        headers: { "access_token": cfg.apiKey }
       });
       pixData = await pixRes.json();
     }
@@ -184,9 +230,10 @@ serve(async (req: Request) => {
       payment_method: payment.payment_method,
       asaas_payment_id: asaasResult.id,
       asaas_customer_id: asaasCustomerId,
+      asaas_environment: requestedEnv,
       payment_status: paymentStatus,
       pix_qr_code: pixData?.encodedImage,
-      pix_expiration: asaasResult.dueDate, // Asaas doesn't give a specific PIX expiry in the main payload usually
+      pix_expiration: asaasResult.dueDate,
       financial_status: paymentStatus === "paid" ? "paid" : "pending",
     });
 
@@ -196,6 +243,7 @@ serve(async (req: Request) => {
       success: true,
       order_id: asaasResult.id,
       status: paymentStatus,
+      environment: requestedEnv,
     };
 
     if (payment.payment_method === "pix") {
@@ -212,9 +260,9 @@ serve(async (req: Request) => {
   } catch (error: any) {
     console.error("[payment] Error:", error.message);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || "Erro interno ao processar pagamento" 
+      JSON.stringify({
+        success: false,
+        error: error.message || "Erro interno ao processar pagamento"
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );

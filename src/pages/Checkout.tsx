@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useSiteSettings } from '../context/SettingsContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Truck, CreditCard, MapPin, User as UserIcon, Loader2, CheckCircle2, Building2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -27,6 +28,7 @@ const REGION_LABELS: Record<string, string> = {
 export function Checkout() {
   const { user, loading: authLoading } = useAuth();
   const { items, subtotal, clearCart } = useCart();
+  const { settings } = useSiteSettings();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
@@ -384,7 +386,8 @@ export function Checkout() {
           amount: finalTotal,
           payment: {
             ...paymentData,
-            remoteIp: clientIp
+            remoteIp: clientIp,
+            environment: (settings as any)?.asaas_environment === 'production' ? 'production' : 'sandbox'
           }
         }
       });
